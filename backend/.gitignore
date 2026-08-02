@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output — hech qachon gitga kirmasin
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Backup fayllar
+*.bak
+*.bak-*
+*.backup
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Test coverage
+coverage/
+compose.override.yml
