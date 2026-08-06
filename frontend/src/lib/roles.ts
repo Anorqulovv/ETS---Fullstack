@@ -35,6 +35,7 @@ export type NavKey =
   | "finance"
   | "permissions"
   | "gamification"
+  | "salary"
   | "activity"
   | "settings"
   | "profile";
@@ -59,6 +60,7 @@ const ALL_KEYS: NavKey[] = [
   "finance",
   "permissions",
   "gamification",
+  "salary",
   "activity",
   "settings",
   "profile",

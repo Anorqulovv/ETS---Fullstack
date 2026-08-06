@@ -30,7 +30,8 @@
     "finance": "Moliya",
     "permissions": "Ruxsatlar",
     "gamification": "Gamifikatsiya",
-    "activity": "So'nggi faollik"
+    "activity": "So'nggi faollik",
+    "salary": "Oyliklar"
   },
   "common": {
     "search": "Qidirish",
@@ -106,7 +107,9 @@
     "thisMonth": "shu oy",
     "notEnoughHistory": "Yetarli tarix yo'q",
     "none": "Yo'q",
-    "genderRequired": "Jinsini tanlash shart"
+    "genderRequired": "Jinsini tanlash shart",
+    "view": "Ko'rish",
+    "endsAt": "Tugash vaqti"
   },
   "toast": {
     "created": "Muvaffaqiyatli yaratildi",
@@ -191,7 +194,12 @@
       "cancelReasonPlaceholder": "Masalan: Navro'z bayrami",
       "cancelHint": "Bekor qilingandan so'ng, kursning tugash sanasi avtomatik ravishda bitta dars kunigacha suriladi.",
       "noCancelled": "Hozircha bekor qilingan dars yo'q",
-      "autoEndDateHint": "{{direction}} — {{months}} oylik kursga qarab avtomatik hisoblanadi"
+      "autoEndDateHint": "{{direction}} — {{months}} oylik kursga qarab avtomatik hisoblanadi",
+      "calendar": "Kalendar",
+      "lessonHeld": "Bo'lgan",
+      "lessonCancelled": "Qoldirilgan",
+      "lessonPending": "Kutilmoqda",
+      "calendarTitle": "Dars kalendari"
     },
     "teachers": {
       "title": "O'qituvchilar",
@@ -410,6 +418,25 @@
       "subtitle": "Foydalanuvchilarga o'z rolidan tashqari qo'shimcha huquqlar berish",
       "primaryRole": "Asosiy rol",
       "grantedRoles": "Qo'shimcha huquqlar"
+    },
+    "salary": {
+      "title": "Oyliklar",
+      "subtitle": "Dars kunlari/soatlariga qarab hisoblangan oyliklar",
+      "settingsTitle": "Standart 1-dars narxi",
+      "teacherRate": "O'qituvchi (so'm/dars)",
+      "supportRate": "Support (so'm/dars)",
+      "employee": "Xodim",
+      "role": "Roli",
+      "lessonsThisMonth": "Shu oydagi darslar",
+      "rate": "Narx",
+      "mode": "Rejim",
+      "modeFixed": "Belgilangan",
+      "modePerLesson": "Dars bo'yicha",
+      "payable": "To'lanadigan",
+      "customRate": "Shaxsiy narx",
+      "monthlySalaryFixed": "Belgilangan oylik",
+      "myLessonsThisMonth": "Shu oyda o'tgan darslaringiz",
+      "myRate": "1-dars narxi"
     }
   },
   "notFound": {

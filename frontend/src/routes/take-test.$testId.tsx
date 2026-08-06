@@ -64,6 +64,7 @@ function TakeTestPage() {
   const violationMutation = useMarkViolation();
 
   const [phase, setPhase] = useState<Phase>("intro");
+  const [startError, setStartError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [result, setResult] = useState<SubmitTestResponse | null>(null);
@@ -204,7 +205,14 @@ function TakeTestPage() {
           el.requestFullscreen().catch(() => {});
         }
       },
-      onError: () => setPhase("error"),
+      onError: (error: unknown) => {
+        const message =
+          error && typeof error === "object" && "response" in error
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+            : undefined;
+        setStartError(message ?? null);
+        setPhase("error");
+      },
     });
   };
 
@@ -315,7 +323,7 @@ function TakeTestPage() {
           icon={<AlertTriangle className="h-10 w-10 text-destructive" />}
           tone="destructive"
           title={t("pages.takeTest.errorTitle")}
-          message={t("pages.takeTest.errorMessage")}
+          message={startError ?? t("pages.takeTest.errorMessage")}
           onExit={() => void navigate({ to: "/tests" })}
         />
       ) : null}

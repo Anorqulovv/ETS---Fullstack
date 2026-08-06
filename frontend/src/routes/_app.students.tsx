@@ -1,11 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { Eye } from "lucide-react";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
 import { GenderSelect } from "@/components/shared/gender-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
@@ -42,7 +44,13 @@ function StudentsPage() {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <div className="truncate font-medium">{r.fullName}</div>
+            <Link
+              to="/students/$studentId"
+              params={{ studentId: String(r.id) }}
+              className="truncate font-medium hover:underline"
+            >
+              {r.fullName}
+            </Link>
             <div className="truncate text-xs text-muted-foreground">{r.cardId}</div>
           </div>
         </div>
@@ -68,6 +76,18 @@ function StudentsPage() {
       header: t("common.username"),
       cell: (r) => (
         <span className="text-muted-foreground">{r.username ? `@${r.username}` : "—"}</span>
+      ),
+    },
+    {
+      key: "view",
+      header: "",
+      cell: (r) => (
+        <Button asChild size="sm" variant="ghost">
+          <Link to="/students/$studentId" params={{ studentId: String(r.id) }}>
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            {t("common.view")}
+          </Link>
+        </Button>
       ),
     },
   ];

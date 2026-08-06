@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Plus, Sparkles, Trash2, PlayCircle, Clock } from "lucide-react";
+import { Plus, Sparkles, Trash2, PlayCircle, Clock, ChevronRight } from "lucide-react";
+
+import { isoToLocalInput, localInputToISO } from "@/lib/datetime";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
@@ -337,7 +339,21 @@ function TestForm({
 
   const setQuestions = (next: TestQuestion[]) => onChange({ questions: next });
 
-  const addQuestion = () => setQuestions([...questions, emptyQuestion()]);
+  // Savollar ro'yxati uzun bo'lishi mumkin — har birini boshidanoq to'liq ochiq ko'rsatish
+  // o'rniga, sarlavhasiga bosilganda variantlari pastida ochiladi.
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(new Set());
+  const toggleQuestion = (qIdx: number) =>
+    setExpandedQuestions((prev) => {
+      const next = new Set(prev);
+      if (next.has(qIdx)) next.delete(qIdx);
+      else next.add(qIdx);
+      return next;
+    });
+
+  const addQuestion = () => {
+    setQuestions([...questions, emptyQuestion()]);
+    setExpandedQuestions((prev) => new Set(prev).add(questions.length));
+  };
   const removeQuestion = (qIdx: number) => setQuestions(questions.filter((_, i) => i !== qIdx));
   const updateQuestionText = (qIdx: number, text: string) =>
     setQuestions(questions.map((q, i) => (i === qIdx ? { ...q, text } : q)));
@@ -413,7 +429,7 @@ function TestForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1.5">
           <Label>Min score</Label>
           <Input
@@ -436,8 +452,16 @@ function TestForm({
           <Label>{t("common.date")}</Label>
           <Input
             type="datetime-local"
-            value={row?.startsAt ?? ""}
-            onChange={(e) => onChange({ startsAt: e.target.value })}
+            value={isoToLocalInput(row?.startsAt)}
+            onChange={(e) => onChange({ startsAt: localInputToISO(e.target.value) })}
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label>{t("common.endsAt")}</Label>
+          <Input
+            type="datetime-local"
+            value={isoToLocalInput(row?.endsAt)}
+            onChange={(e) => onChange({ endsAt: localInputToISO(e.target.value) })}
           />
         </div>
       </div>
@@ -460,64 +484,91 @@ function TestForm({
         ) : null}
 
         <div className="space-y-3">
-          {questions.map((q, qIdx) => (
-            <Card key={qIdx} className="shadow-none">
-              <CardContent className="space-y-3 p-3">
-                <div className="flex items-start gap-2">
-                  <Textarea
-                    placeholder={`Savol ${qIdx + 1} matni`}
-                    value={q.text}
-                    onChange={(e) => updateQuestionText(qIdx, e.target.value)}
-                    className="min-h-[44px] flex-1"
+          {questions.map((q, qIdx) => {
+            const isExpanded = expandedQuestions.has(qIdx);
+            const correctChoice = q.choices.find((c) => c.isCorrect);
+            return (
+              <Card key={qIdx} className="shadow-none">
+                <button
+                  type="button"
+                  onClick={() => toggleQuestion(qIdx)}
+                  className="flex w-full items-start gap-2 p-3 text-left"
+                >
+                  <ChevronRight
+                    className={"mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (isExpanded ? "rotate-90" : "")}
                   />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {qIdx + 1}. {q.text || `Savol ${qIdx + 1}`}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {correctChoice?.text
+                        ? `To'g'ri javob: ${correctChoice.text}`
+                        : "To'g'ri javob belgilanmagan"}
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="shrink-0 text-destructive"
-                    onClick={() => removeQuestion(qIdx)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeQuestion(qIdx);
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                </div>
+                </button>
 
-                <RadioGroup
-                  value={String(q.choices.findIndex((c) => c.isCorrect))}
-                  onValueChange={(v) => setCorrectChoice(qIdx, Number(v))}
-                  className="space-y-2"
-                >
-                  {q.choices.map((c, cIdx) => (
-                    <div key={cIdx} className="flex items-center gap-2">
-                      <RadioGroupItem value={String(cIdx)} id={`q${qIdx}-c${cIdx}`} />
-                      <Input
-                        placeholder={`Variant ${cIdx + 1}`}
-                        value={c.text}
-                        onChange={(e) => updateChoiceText(qIdx, cIdx, e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 text-muted-foreground"
-                        onClick={() => removeChoice(qIdx, cIdx)}
-                        disabled={q.choices.length <= 2}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </RadioGroup>
-                <Button type="button" variant="ghost" size="sm" onClick={() => addChoice(qIdx)}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Variant qo'shish
-                </Button>
-                <p className="text-[11px] text-muted-foreground">
-                  To'g'ri javobni belgilash uchun variant yonidagi doiraga bosing.
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+                {isExpanded ? (
+                  <CardContent className="space-y-3 border-t p-3 pt-3">
+                    <Textarea
+                      placeholder={`Savol ${qIdx + 1} matni`}
+                      value={q.text}
+                      onChange={(e) => updateQuestionText(qIdx, e.target.value)}
+                      className="min-h-[44px] flex-1"
+                    />
+
+                    <RadioGroup
+                      value={String(q.choices.findIndex((c) => c.isCorrect))}
+                      onValueChange={(v) => setCorrectChoice(qIdx, Number(v))}
+                      className="space-y-2"
+                    >
+                      {q.choices.map((c, cIdx) => (
+                        <div key={cIdx} className="flex items-center gap-2">
+                          <RadioGroupItem value={String(cIdx)} id={`q${qIdx}-c${cIdx}`} />
+                          <Input
+                            placeholder={`Variant ${cIdx + 1}`}
+                            value={c.text}
+                            onChange={(e) => updateChoiceText(qIdx, cIdx, e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 text-muted-foreground"
+                            onClick={() => removeChoice(qIdx, cIdx)}
+                            disabled={q.choices.length <= 2}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => addChoice(qIdx)}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Variant qo'shish
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground">
+                      To'g'ri javobni belgilash uchun variant yonidagi doiraga bosing.
+                    </p>
+                  </CardContent>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

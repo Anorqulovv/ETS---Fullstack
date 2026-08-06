@@ -30,7 +30,8 @@
     "finance": "Finance",
     "permissions": "Permissions",
     "gamification": "Gamification",
-    "activity": "Recent activity"
+    "activity": "Recent activity",
+    "salary": "Salaries"
   },
   "common": {
     "search": "Search",
@@ -106,7 +107,9 @@
     "thisMonth": "this month",
     "notEnoughHistory": "Not enough history",
     "none": "None",
-    "genderRequired": "Gender is required"
+    "genderRequired": "Gender is required",
+    "view": "View",
+    "endsAt": "End time"
   },
   "toast": {
     "created": "Created successfully",
@@ -191,7 +194,12 @@
       "cancelReasonPlaceholder": "E.g. a public holiday",
       "cancelHint": "Once cancelled, the course end date automatically moves out by one lesson.",
       "noCancelled": "No cancelled lessons yet",
-      "autoEndDateHint": "{{direction}} — auto-calculated from the {{months}}-month course"
+      "autoEndDateHint": "{{direction}} — auto-calculated from the {{months}}-month course",
+      "calendar": "Calendar",
+      "lessonHeld": "Held",
+      "lessonCancelled": "Cancelled",
+      "lessonPending": "Pending",
+      "calendarTitle": "Lesson calendar"
     },
     "teachers": {
       "title": "Teachers",
@@ -410,6 +418,25 @@
       "subtitle": "Grant users extra role-equivalent permissions beyond their main role",
       "primaryRole": "Primary role",
       "grantedRoles": "Extra permissions"
+    },
+    "salary": {
+      "title": "Salaries",
+      "subtitle": "Salary calculated from lesson days/hours",
+      "settingsTitle": "Default per-lesson rate",
+      "teacherRate": "Teacher (so'm/lesson)",
+      "supportRate": "Support (so'm/lesson)",
+      "employee": "Employee",
+      "role": "Role",
+      "lessonsThisMonth": "Lessons this month",
+      "rate": "Rate",
+      "mode": "Mode",
+      "modeFixed": "Fixed",
+      "modePerLesson": "Per lesson",
+      "payable": "Payable",
+      "customRate": "Custom rate",
+      "monthlySalaryFixed": "Fixed monthly salary",
+      "myLessonsThisMonth": "Your lessons this month",
+      "myRate": "Per-lesson rate"
     }
   },
   "notFound": {

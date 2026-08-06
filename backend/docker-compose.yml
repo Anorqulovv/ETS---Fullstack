@@ -16,24 +16,25 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
 
   api:
     build: .
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "7001:7001"
     depends_on:
-      db:
-        condition: service_started
-      redis:
-        condition: service_started
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
+      - db
+      - redis
+
+  frontend:
+    build: ../frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
-  redis_data:

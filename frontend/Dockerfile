@@ -8,10 +8,8 @@ RUN npm install
 
 COPY . .
 
-ENV NITRO_PRESET=node-server
-
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node",".output/server/index.mjs"]
+CMD ["node", ".output/server/index.mjs"]

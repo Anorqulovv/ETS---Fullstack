@@ -175,23 +175,72 @@ export interface ListParams {
  * single { data, total } shape the UI relies on. If edu-najottalim.uz uses a
  * different shape, add it here.
  */
-function normalizePaginated<T>(payload: unknown, fallbackLimit: number): Paginated<T> {
+/**
+ * Several backend list endpoints don't fully implement search/pagination server-side — some read
+ * `name` but the client only ever sent `search` (so the filter was silently ignored), and some
+ * (e.g. GET /students) don't take a query at all and just return every row. This normalizes
+ * whatever the backend sends: real pagination metadata is trusted as-is; a bare array gets
+ * search-filtered and page-sliced here so the table's search box and pager still work.
+ */
+function normalizePaginated<T>(
+  payload: unknown,
+  fallbackLimit: number,
+  params: { page?: number; limit?: number; search?: string } = {},
+): Paginated<T> {
+  // Unwrap whatever shape the backend sent: a bare array, or an object with the array under
+  // data/items/results/content (this backend's succesRes() always wraps as
+  // {statusCode, message, data: [...]}, so it's almost always the latter).
+  let rows: T[];
+  let serverTotal: number | undefined;
   if (Array.isArray(payload)) {
-    return { data: payload as T[], total: payload.length };
-  }
-  if (payload && typeof payload === "object") {
+    rows = payload;
+  } else if (payload && typeof payload === "object") {
     const p = payload as Record<string, unknown>;
-    const data = (p.data ?? p.items ?? p.results ?? p.content ?? []) as T[];
-    const total = (p.total ?? p.count ?? p.totalCount ?? p.totalElements ?? data.length) as number;
-    return { data, total: typeof total === "number" ? total : data.length };
+    rows = (p.data ?? p.items ?? p.results ?? p.content ?? []) as T[];
+    const total = p.total ?? p.count ?? p.totalCount ?? p.totalElements;
+    if (typeof total === "number") serverTotal = total;
+  } else {
+    rows = [];
   }
-  return { data: [], total: 0 };
+
+  // A real total (different from rows.length, or explicitly provided by a paginated envelope)
+  // means the backend already searched/paginated — trust it as-is. Otherwise this is a bare,
+  // unfiltered, unpaginated array (many endpoints here are — see e.g. GET /students), so search
+  // and page-slice it here instead of silently ignoring both.
+  if (serverTotal !== undefined && serverTotal !== rows.length) {
+    return { data: rows, total: serverTotal };
+  }
+
+  const term = params.search?.trim().toLowerCase();
+  if (term) {
+    rows = rows.filter((row) => {
+      const r = row as Record<string, unknown>;
+      const nested = (r.user ?? r.parent ?? {}) as Record<string, unknown>;
+      const haystack = [r.fullName, r.name, r.title, r.username, r.phone, nested.fullName, nested.username, nested.phone]
+        .filter((v) => typeof v === "string")
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }
+  const total = rows.length;
+  const page = params.page ?? 1;
+  const limit = params.limit ?? fallbackLimit;
+  const start = (page - 1) * limit;
+  return { data: rows.slice(start, start + limit), total };
 }
 
 export async function apiList<T>(resource: string, params: ListParams = {}): Promise<Paginated<T>> {
-  const { page = 1, limit = 10, ...rest } = params;
-  const { data } = await api.get(resource, { params: { page, limit, ...rest } });
-  return normalizePaginated<T>(data, limit);
+  const { page = 1, limit = 10, search, ...rest } = params;
+  // Send both keys: `search` for any endpoint that reads that name, `name` for the (more common)
+  // convention most services here actually implement (see e.g. TeacherService.findAll).
+  const query: Record<string, unknown> = { page, limit, ...rest };
+  if (search) {
+    query.search = search;
+    query.name = search;
+  }
+  const { data } = await api.get(resource, { params: query });
+  return normalizePaginated<T>(data, limit, { page, limit, search: search as string | undefined });
 }
 
 export async function apiGet<T>(resource: string, id: number | string): Promise<T> {

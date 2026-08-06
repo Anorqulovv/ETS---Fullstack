@@ -31,6 +31,7 @@ import {
   paymentsQ,
   studentsQ,
   useChildrenPayments,
+  useChildrenDebt,
   useMyBalance,
   useMyPayments,
   usePayFull,
@@ -350,7 +351,7 @@ function PaymentsPage() {
       <CourseBillingPanel />
 
       {summary ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="shadow-soft">
             <CardContent className="flex items-center gap-3 pt-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -371,6 +372,20 @@ function PaymentsPage() {
                 <div className="text-xs text-muted-foreground">{t("payments.totalPayments")}</div>
                 <div className="text-xl font-semibold tabular-nums">
                   {summary.totalPayments} ({summary.byStatus.PAID} {t("status.paid")})
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-soft">
+            <CardContent className="flex items-center gap-3 pt-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">{t("pages.payments.debt")}</div>
+                <div className="text-xl font-semibold tabular-nums">{format(summary.totalDebt ?? 0)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {summary.studentsWithDebt ?? 0} o'quvchida
                 </div>
               </div>
             </CardContent>
@@ -553,7 +568,7 @@ function StudentPaymentsView() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">To'langan</div>
+                <div className="text-xs text-muted-foreground">{t("pages.dashboard.paidLabel")}</div>
                 <div className="text-xl font-semibold tabular-nums">{format(totalPaid)}</div>
               </div>
             </CardContent>
@@ -564,8 +579,10 @@ function StudentPaymentsView() {
                 <Receipt className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Qarzdorlik</div>
-                <div className="text-xl font-semibold tabular-nums">{format(totalUnpaid)}</div>
+                <div className="text-xs text-muted-foreground">{t("pages.payments.debt")}</div>
+                <div className="text-xl font-semibold tabular-nums">
+                  {format(balance?.hasCoursePricing ? (balance.debtAmount ?? 0) : totalUnpaid)}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -619,12 +636,32 @@ function ParentPaymentsView() {
   const { t } = useTranslation();
   const { format } = useCurrency();
   const { data, isLoading } = useChildrenPayments();
+  const { data: debtSummary } = useChildrenDebt();
   const rows = data ?? [];
 
   return (
     <PageMotion>
       <div className="space-y-5">
         <PageHeader title={t("pages.payments.title")} description="Farzandingiz to'lovlari" />
+
+        {debtSummary ? (
+          <Card className="shadow-soft">
+            <CardContent className="flex items-center gap-3 pt-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">{t("pages.payments.debt")}</div>
+                <div className="text-xl font-semibold tabular-nums">{format(debtSummary.totalDebt)}</div>
+                {debtSummary.childrenWithDebt > 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    {debtSummary.childrenWithDebt}/{debtSummary.childrenCount} farzandda
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{t("common.loading")}</p>

@@ -51,7 +51,16 @@ export class ParentsService {
       relations: ['user', 'students', 'students.user'],
       order: { createdAt: 'DESC' },
     });
-    return succesRes(parents);
+    const safeParents = parents.map((p) => {
+      const { user, students, ...rest } = p as any;
+      const safeUser = user ? (({ password: _pw, ...u }) => u)(user) : user;
+      const safeStudents = (students ?? []).map((s: any) => {
+        const { user: su, ...srest } = s;
+        return { ...srest, user: su ? (({ password: _pw2, ...u2 }) => u2)(su) : su };
+      });
+      return { ...rest, user: safeUser, students: safeStudents };
+    });
+    return succesRes(safeParents);
   }
 
   async findOne(id: number): Promise<ISucces> {
@@ -60,7 +69,9 @@ export class ParentsService {
       relations: ['user', 'students', 'students.group'],
     });
     if (!parent) throw new NotFoundException(`Parent ID ${id} topilmadi`);
-    return succesRes(parent);
+    const { user, ...rest } = parent as any;
+    const safeUser = user ? (({ password: _pw, ...u }) => u)(user) : user;
+    return succesRes({ ...rest, user: safeUser });
   }
 
   async getMyChildren(parentUserId: number): Promise<ISucces> {

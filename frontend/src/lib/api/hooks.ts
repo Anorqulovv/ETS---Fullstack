@@ -25,7 +25,10 @@ import type {
   PaymentSettings as PaymentSettingsT,
   StudentBalance,
   ShopItem,
+  SalaryInfo,
+  SalarySettingsT,
   Student,
+  StudentDetail,
   StartTestResponse,
   SubmitTestResponse,
   Teacher,
@@ -329,6 +332,16 @@ export const studentsQ = createCrudHooks<Student>(
   flattenStudent,
   ["fullName", "username", "phone", "cardId", "groupId", "parentId", "password", "gender"],
 );
+
+/** GET /students/:id — full detail (group/teacher/direction, attendance, test results, stats). */
+export function useStudentDetail(id?: number | string) {
+  return useQuery({
+    queryKey: ["students", id, "detail"],
+    queryFn: () => apiRequest<StudentDetail>({ url: `${RESOURCES.students}/${id}`, method: "GET" }),
+    enabled: id != null,
+  });
+}
+
 export const parentsQ = createCrudHooks<Parent>(
   RESOURCES.parents,
   "parents",
@@ -357,6 +370,18 @@ export function useChildrenPayments() {
     queryFn: () =>
       apiRequest<(Payment & { studentName?: string; student?: { user?: { fullName?: string } } })[]>({
         url: `${RESOURCES.payments}/children`,
+        method: "GET",
+      }),
+  });
+}
+
+/** GET /payments/children-debt — real qarzdorlik (kurs narxi/chegirma asosida), ota-ona uchun. */
+export function useChildrenDebt() {
+  return useQuery({
+    queryKey: ["payments", "children-debt"],
+    queryFn: () =>
+      apiRequest<{ totalDebt: number; childrenWithDebt: number; childrenCount: number }>({
+        url: `${RESOURCES.payments}/children-debt`,
         method: "GET",
       }),
   });
@@ -628,6 +653,68 @@ export function usePurchaseShopItem() {
       toast.success(`${data?.item ?? "Mahsulot"} xarid qilindi!`);
     },
     onError: (error: unknown) => toast.error(errorMessage(error, "Xarid qilib bo'lmadi")),
+  });
+}
+
+// ==================== OYLIK (dars kuni/soati asosida) ====================
+
+/** GET /salary/settings — 1-dars uchun standart narxlar (o'qituvchi/support). */
+export function useSalarySettings() {
+  return useQuery({
+    queryKey: ["salary", "settings"],
+    queryFn: () => apiRequest<SalarySettingsT>({ url: "/salary/settings", method: "GET" }),
+  });
+}
+
+export function useUpdateSalarySettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SalarySettingsT) =>
+      apiRequest<SalarySettingsT>({ url: "/salary/settings", method: "PATCH", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["salary"] });
+      toast.success("Standart narxlar yangilandi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Saqlab bo'lmadi")),
+  });
+}
+
+/** GET /salary/overview — barcha o'qituvchi/support'larning shu oygi oyligi (SUPERADMIN/ADMIN). */
+export function useSalaryOverview(month?: string) {
+  return useQuery({
+    queryKey: ["salary", "overview", month],
+    queryFn: () => apiRequest<SalaryInfo[]>({ url: "/salary/overview", method: "GET", params: { month } }),
+  });
+}
+
+/** GET /salary/my — TEACHER/SUPPORT o'zining oyligi. Pass enabled=false for other roles, since
+ * this endpoint 403s for anyone but TEACHER/SUPPORT. */
+export function useMySalary(month?: string, enabled = true) {
+  return useQuery({
+    queryKey: ["salary", "my", month],
+    queryFn: () => apiRequest<SalaryInfo>({ url: "/salary/my", method: "GET", params: { month } }),
+    enabled,
+  });
+}
+
+/** PATCH /salary/rate/:userId — SUPERADMIN, bitta xodimning rejimi/narxini belgilaydi. */
+export function useSetUserSalary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      ...payload
+    }: {
+      userId: number;
+      salaryMode?: "FIXED" | "PER_LESSON";
+      perLessonRate?: number;
+      salary?: number;
+    }) => apiRequest<Teacher>({ url: `/salary/rate/${userId}`, method: "PATCH", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["salary"] });
+      toast.success("Saqlandi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Saqlab bo'lmadi")),
   });
 }
 

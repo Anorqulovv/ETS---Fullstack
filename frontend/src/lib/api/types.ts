@@ -37,6 +37,9 @@ export interface Teacher {
   isActive?: boolean;
   /** Monthly salary — write-only from the admin's side; the backend strips it from list/detail reads (colleagues shouldn't see each other's pay). */
   salary?: number;
+  /** "FIXED" (flat monthly) or "PER_LESSON" (lessons held x rate) — see /salary endpoints. */
+  salaryMode?: "FIXED" | "PER_LESSON";
+  perLessonRate?: number;
 }
 
 export type GroupStatus = "ACTIVE" | "PAUSED" | "FINISHED";
@@ -130,6 +133,60 @@ export interface StudentBalance {
   canPayRemainder?: boolean;
 }
 
+export interface SalaryInfo {
+  userId: number;
+  fullName?: string;
+  role?: string;
+  month: string;
+  mode: "FIXED" | "PER_LESSON";
+  lessonsCount: number;
+  perLessonRate: number;
+  computedTotal?: number;
+  fixedSalary: number;
+  payableAmount: number;
+  groupsCount?: number;
+}
+
+export interface SalarySettingsT {
+  teacherPerLessonRate: number;
+  supportPerLessonRate: number;
+}
+
+/** GET /students/:id — the rich single-record view (list rows only carry the flat Student shape). */
+export interface StudentDetail {
+  id: number;
+  cardId?: string;
+  points?: number;
+  createdAt?: string;
+  user?: { id: number; fullName: string; username?: string; phone?: string; gender?: Gender; avatar?: string };
+  parent?: { id: number; phone2?: string; user?: { fullName: string; phone?: string; username?: string } };
+  group?: {
+    id: number;
+    name: string;
+    status?: string;
+    lessonDays?: string[];
+    lessonTime?: string;
+    teacher?: { id: number; fullName: string };
+    direction?: { id: number; name: string };
+  };
+  attendance?: { id: number; isPresent: boolean; type?: string; timestamp?: string }[];
+  results?: {
+    id: number;
+    score: number;
+    attempt: number;
+    isCurrent: boolean;
+    submittedAt?: string;
+    test?: { id: number; title: string; minScore?: number };
+  }[];
+  stats?: {
+    totalTests: number;
+    avgScore: number;
+    passedTests: number;
+    failedTests: number;
+    passRate: number;
+  };
+}
+
 export interface ShopItem {
   id: number;
   name: string;
@@ -148,6 +205,10 @@ export interface PaymentsSummary {
   totalAmount: number;
   totalPayments: number;
   byStatus: { PAID: number; UNPAID: number; PARTIAL: number };
+  /** Real qarzdorlik — unpaid due months x rate across every enrolled student (see
+   * PaymentsService.getDebtTotals), not the legacy manual PaymentStatus counts above. */
+  totalDebt?: number;
+  studentsWithDebt?: number;
 }
 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
