@@ -54,9 +54,17 @@ const isProduction = process.env.NODE_ENV === 'production';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: envConfig.DB_URL,
-      // MUHIM: Production'da synchronize HECH QACHON true bo'lmasin!
-      // Ma'lumotlar yo'qolishi mumkin. Buning o'rniga migrations ishlating.
-      synchronize: true,
+      // MUHIM: synchronize endi HAR DOIM false. Bazadagi o'zgarishlar endi
+      // FAQAT `src/migrations/`dagi migratsiyalar orqali amalga oshiriladi
+      // (qarang: src/data-source.ts va package.json'dagi migration:* scriptlari).
+      // Bu, masalan, kimdir yangi entity/ustun qo'shsa-yu, lekin migratsiya
+      // yozmasa, ishlab chiqarish bazasi "sukut bo'yicha" o'zgarib ketmasligini
+      // kafolatlaydi.
+      synchronize: false,
+      // Ilova ishga tushganda migratsiyalar avtomatik qo'llaniladi (deploy paytida
+      // qo'lda `npm run migration:run` chaqirishni unutib qo'yish xavfini kamaytiradi).
+      migrationsRun: true,
+      migrations: [__dirname + '/migrations/*{.ts,.js}'],
       autoLoadEntities: true,
       logging: !isProduction ? ['error', 'warn'] : ['error'],
     }),

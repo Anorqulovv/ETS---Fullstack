@@ -31,3 +31,6 @@ Thumbs.db
 # Test coverage
 coverage/
 compose.override.yml
+
+# DB zaxira fayllari (scripts/backup-db.sh tomonidan yaratiladi)
+backups/
