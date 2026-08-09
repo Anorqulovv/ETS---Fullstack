@@ -30,4 +30,17 @@ export class AiGenerateTestDto {
   @IsOptional()
   @IsString()
   difficulty?: 'easy' | 'medium' | 'hard';
+
+  // Masala (coding problem) qo'shish butunlay ixtiyoriy.
+  // Berilmasa yoki 0 bo'lsa, AI umuman masala generatsiya qilmaydi.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  problemCount?: number;
+
+  // Masalalar darajalar taqsimoti, masalan { "SIMPLE": 2, "MEDIUM": 2, "DEEP": 1 }
+  // Berilmasa, AI problemCount asosida o'zi taqsimlaydi (sodda->o'rta->chuqur ketma-ketligida).
+  @IsOptional()
+  problemDifficultyMix?: Record<string, number>;
 }

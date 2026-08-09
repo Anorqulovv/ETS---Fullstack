@@ -18,7 +18,7 @@ function BranchesPage() {
   const columns: Column<Branch>[] = [
     {
       key: "name",
-      header: t("common.name"),
+      header: t("common.title"),
       cell: (r) => <span className="font-medium">{r.name}</span>,
     },
     { key: "address", header: "Address", cell: (r) => r.address ?? "—" },
@@ -42,7 +42,7 @@ function BranchesPage() {
       renderForm={(row, onChange) => (
         <div className="grid gap-4">
           <div className="grid gap-1.5">
-            <Label>{t("common.name")}</Label>
+            <Label>{t("common.title")}</Label>
             <Input value={row?.name ?? ""} onChange={(e) => onChange({ name: e.target.value })} />
           </div>
           <div className="grid gap-1.5">

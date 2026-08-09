@@ -49,6 +49,12 @@ function ProfilePage() {
 
   const wantsPasswordChange = Boolean(oldPassword || newPassword || confirmPassword);
 
+  // Backend @IsStrongPassword talabi bilan bir xil: kamida 8 belgi, katta va kichik
+  // harf, raqam hamda maxsus belgi. Foydalanuvchi "Saqlash"ni bosishidan oldin shu
+  // yerda ko'rsatib, keraksiz server xatoligini oldini olamiz.
+  const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  const isNewPasswordStrong = !newPassword || STRONG_PASSWORD_RE.test(newPassword);
+
   async function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -75,6 +81,13 @@ function ProfilePage() {
   function handleSave() {
     if (wantsPasswordChange && newPassword !== confirmPassword) {
       toast.error(t("pages.profile.confirmPassword") + " ≠ " + t("pages.profile.newPassword"));
+      return;
+    }
+
+    if (wantsPasswordChange && !isNewPasswordStrong) {
+      toast.error(
+        "Yangi parol kuchli bo'lishi kerak: kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)",
+      );
       return;
     }
 
@@ -201,7 +214,15 @@ function ProfilePage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     autoComplete="new-password"
+                    aria-invalid={!isNewPasswordStrong}
                   />
+                  <p
+                    className={`text-[11px] ${
+                      newPassword && !isNewPasswordStrong ? "text-destructive" : "text-muted-foreground"
+                    }`}
+                  >
+                    Kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)
+                  </p>
                 </div>
                 <div className="grid gap-1.5">
                   <Label>{t("pages.profile.confirmPassword")}</Label>

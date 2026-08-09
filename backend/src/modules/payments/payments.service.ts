@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, IsNull, Repository } from 'typeorm';
 import { Payment } from 'src/databases/entities/payment.entity';
 import { Student } from 'src/databases/entities/student.entity';
 import { Parent } from 'src/databases/entities/parent.entity';
@@ -182,6 +182,26 @@ export class PaymentsService {
     return succesRes(data);
   }
 
+  /** Real qarzdorlik — har bir farzand uchun getBalance bilan bir xil mantiqda hisoblanadi
+   * (legacy PaymentStatus emas). Ota-ona dashboardidagi "Qarzdorlik" shu yerdan olinadi. */
+  async getChildrenDebtSummary(userId: number): Promise<ISucces> {
+    const parent = await this.parentRepo.findOne({ where: { userId } });
+    if (!parent) throw new NotFoundException('Ota-ona topilmadi');
+
+    const students = await this.studentRepo.find({ where: { parentId: parent.id } });
+    let totalDebt = 0;
+    let childrenWithDebt = 0;
+    for (const student of students) {
+      const balanceRes = await this.getBalance(student.id);
+      const balance = (balanceRes as any).data;
+      if (balance?.hasDebt) {
+        totalDebt += balance.debtAmount ?? 0;
+        childrenWithDebt += 1;
+      }
+    }
+    return succesRes({ totalDebt, childrenWithDebt, childrenCount: students.length });
+  }
+
   async findOne(id: number, reqUser?: any): Promise<ISucces> {
     const payment = await this.paymentRepo.findOne({
       where: { id },
@@ -244,11 +264,36 @@ export class PaymentsService {
         .length,
     };
 
+    const { totalDebt, studentsWithDebt } = await this.getDebtTotals();
+
     return succesRes({
       totalAmount,
       totalPayments: payments.length,
       byStatus,
+      totalDebt,
+      studentsWithDebt,
     });
+  }
+
+  /**
+   * Real qarzdorlik (debt) across every enrolled student — same logic as getBalance() (unpaid
+   * due months x discounted monthly rate), not the legacy manual PaymentStatus field. The
+   * course-billing endpoints (payFull/payMonthly/payRemainder) always write PAID rows, so a
+   * status-based count would always show zero debt for anyone paying through that flow.
+   */
+  private async getDebtTotals(): Promise<{ totalDebt: number; studentsWithDebt: number }> {
+    const students = await this.studentRepo.find({ where: { groupId: Not(IsNull()) } as any });
+    let totalDebt = 0;
+    let studentsWithDebt = 0;
+    for (const student of students) {
+      const balanceRes = await this.getBalance(student.id);
+      const balance = (balanceRes as any).data;
+      if (balance?.hasDebt) {
+        totalDebt += balance.debtAmount ?? 0;
+        studentsWithDebt += 1;
+      }
+    }
+    return { totalDebt, studentsWithDebt };
   }
 
   // ==================== KURS NARXI / OYLIK TO'LOV / CHEGIRMA ====================

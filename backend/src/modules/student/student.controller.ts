@@ -50,7 +50,7 @@ export class StudentsController {
   }
 
   @Get()
-  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.MANAGER, UserRole.MARKETING, UserRole.SALES, UserRole.FINANCE)
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.MANAGER, UserRole.MARKETING, UserRole.SALES, UserRole.FINANCE, UserRole.HR)
   findAll(@Req() req: any) {
     return this.studentsService.findAll(req.user);
   }

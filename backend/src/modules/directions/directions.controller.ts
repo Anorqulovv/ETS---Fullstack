@@ -24,7 +24,7 @@ export class DirectionController {
   }
 
   @Get(':id')
-  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.MANAGER, UserRole.MARKETING, UserRole.SALES, UserRole.FINANCE)
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.MANAGER, UserRole.MARKETING, UserRole.SALES, UserRole.FINANCE, UserRole.HR)
   findOne(@Param('id') id: number) {
     return this.directionService.findOne(id);
   }

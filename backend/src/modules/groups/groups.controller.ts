@@ -32,7 +32,7 @@ export class GroupsController {
   }
 
   @Get()
-  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.STUDENT, UserRole.MANAGER, UserRole.MARKETING, UserRole.SALES, UserRole.FINANCE)
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.STUDENT, UserRole.MANAGER, UserRole.MARKETING, UserRole.SALES, UserRole.FINANCE, UserRole.HR)
   findAll(@Req() req: any, @Query() query: any) {
     return this.groupsService.findAll(req.user, query)
   }

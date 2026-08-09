@@ -8,5 +8,6 @@ export enum UserRole {
   MANAGER = 'MANAGER',
   MARKETING = 'MARKETING',
   SALES = 'SALES',
-  FINANCE = 'FINANCE'
+  FINANCE = 'FINANCE',
+  HR = 'HR'
 }

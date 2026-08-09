@@ -32,6 +32,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { UsersModule } from './modules/users/users.module';
+import { SalaryModule } from './modules/salary/salary.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -85,6 +86,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     StaffModule,
     GamificationModule,
     UsersModule,
+    SalaryModule,
   ],
   providers: [
     {

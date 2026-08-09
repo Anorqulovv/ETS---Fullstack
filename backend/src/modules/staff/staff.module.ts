@@ -6,6 +6,7 @@ import { CryptoService } from 'src/infrastructure/helpers/Crypto';
 import { StaffService } from './staff.service';
 import {
   FinanceController,
+  HrController,
   ManagersController,
   MarketingController,
   SalesController,
@@ -13,7 +14,7 @@ import {
 
 @Module({
   imports: [JwtModule.register({}), TypeOrmModule.forFeature([User])],
-  controllers: [ManagersController, MarketingController, SalesController, FinanceController],
+  controllers: [ManagersController, MarketingController, SalesController, FinanceController, HrController],
   providers: [StaffService, CryptoService],
 })
 export class StaffModule {}

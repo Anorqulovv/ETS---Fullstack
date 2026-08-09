@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsEnum, IsNumber, IsOptional, IsString, Matches, MinLength, ValidateNested,
+  IsEnum, IsNumber, IsOptional, IsString, IsStrongPassword, Matches, ValidateNested,
 } from 'class-validator';
 import { Gender } from 'src/common/enums/gender.enum';
 
@@ -34,7 +34,10 @@ export class UpdateParentInStudentDto {
 
   @ApiPropertyOptional({ example: 'Password123!' })
   @IsOptional()
-  @MinLength(6)
+  @IsStrongPassword(
+    { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
+    { message: "Parol kuchli bo'lishi kerak: kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi" },
+  )
   password?: string;
 
   @ApiPropertyOptional({ enum: Gender, example: Gender.MALE })
@@ -78,7 +81,10 @@ export class UpdateStudentDto {
 
   @ApiPropertyOptional({ example: 'NewPassword123!' })
   @IsOptional()
-  @MinLength(6)
+  @IsStrongPassword(
+    { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
+    { message: "Parol kuchli bo'lishi kerak: kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi" },
+  )
   password?: string;
 
   @ApiPropertyOptional({ example: '123456789' })

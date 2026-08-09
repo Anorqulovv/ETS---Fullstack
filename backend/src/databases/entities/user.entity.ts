@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { UserRole } from '../../common/enums/role.enum';
 import { Gender } from '../../common/enums/gender.enum';
+import { SalaryMode } from '../../common/enums/salaryMode.enum';
 import { BaseEntity } from './Base.entity';
 import { Direction } from './direction.entity';
 import { Branch } from './branch.entity';
@@ -67,9 +68,19 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   branchId: number;
 
-  /** Monthly salary (UZS) — only meaningful for staff roles, shown on their own dashboard. */
+  /** Monthly salary (UZS) — only meaningful for staff roles, shown on their own dashboard. Used
+   * as-is when salaryMode is FIXED; ignored (informational only) when PER_LESSON. */
   @Column({ type: 'int', nullable: true })
   salary: number;
+
+  /** How this person's salary is determined — see SalaryService. SUPERADMIN-settable. */
+  @Column({ type: 'enum', enum: SalaryMode, default: SalaryMode.FIXED })
+  salaryMode: SalaryMode;
+
+  /** Per-lesson rate override (UZS) — when null, SalarySettings' role default is used. Only
+   * meaningful when salaryMode is PER_LESSON. */
+  @Column({ type: 'int', nullable: true })
+  perLessonRate: number;
 
   @Column({ nullable: true, type: 'text' })
   avatar: string;

@@ -123,3 +123,29 @@ export class FinanceController {
     return this.service.remove(UserRole.FINANCE, id);
   }
 }
+
+@ApiTags('HR')
+@ApiBearerAuth()
+@UseGuards(AuthGuard, RolesGuard)
+@Controller('hr')
+export class HrController {
+  constructor(private readonly service: StaffService) {}
+  @Post() @AccessRoles(...MANAGE_ROLES) create(@Body() dto: CreateStaffDto) {
+    return this.service.create(UserRole.HR, dto);
+  }
+  @Get() @AccessRoles(...MANAGE_ROLES) findAll() {
+    return this.service.findAll(UserRole.HR);
+  }
+  @Get(':id') @AccessRoles(...MANAGE_ROLES) findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(UserRole.HR, id);
+  }
+  @Patch(':id') @AccessRoles(...MANAGE_ROLES) update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateStaffDto,
+  ) {
+    return this.service.update(UserRole.HR, id, dto);
+  }
+  @Delete(':id') @AccessRoles(UserRole.SUPERADMIN) remove(@Param('id', ParseIntPipe) id: number) {
+    return this.service.remove(UserRole.HR, id);
+  }
+}

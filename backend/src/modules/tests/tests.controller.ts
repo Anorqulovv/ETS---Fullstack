@@ -25,6 +25,7 @@ import { SubmitTestDto } from './dto/submit-test.dto';
 import { GenerateMonthlyTestsDto } from './dto/generate-monthly-tests.dto';
 import { CreateBankQuestionDto } from './dto/create-bank-question.dto';
 import { AiGenerateTestDto } from './dto/ai-generate-test.dto';
+import { SubmitCodingProblemDto } from './dto/submit-coding-problem.dto';
 import { TestType } from '../../common/enums/test.enum';
 
 @UseGuards(AuthGuard, RolesGuard)
@@ -178,5 +179,40 @@ export class TestsController {
   @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER)
   getStudentHistory(@Param('studentId', ParseIntPipe) studentId: number) {
     return this.testsService.getStudentTestHistory(studentId);
+  }
+
+  // ==================== MASALALAR (coding problems) ====================
+
+  @Get(':testId/problems')
+  @AccessRoles(
+    UserRole.SUPERADMIN,
+    UserRole.ADMIN,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+  )
+  getTestProblems(@Param('testId', ParseIntPipe) testId: number, @Req() req: any) {
+    return this.testsService.getTestProblems(testId, req.user);
+  }
+
+  @Post('problems/submit')
+  @AccessRoles(UserRole.STUDENT)
+  submitCodingProblem(@Req() req: any, @Body() dto: SubmitCodingProblemDto) {
+    return this.testsService.submitCodingProblem(req.user.id, dto);
+  }
+
+  @Get(':testId/problems/my-results')
+  @AccessRoles(UserRole.STUDENT)
+  getMyCodingResults(@Param('testId', ParseIntPipe) testId: number, @Req() req: any) {
+    return this.testsService.getMyCodingResults(testId, req.user.id);
+  }
+
+  @Get(':testId/student/:studentId/problems')
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER)
+  getStudentProblemReview(
+    @Param('testId', ParseIntPipe) testId: number,
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Req() req: any,
+  ) {
+    return this.testsService.getStudentProblemReview(testId, studentId, req.user);
   }
 }

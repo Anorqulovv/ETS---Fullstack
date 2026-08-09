@@ -48,4 +48,12 @@ export class TestResult extends BaseEntity {
 
   @Column({ nullable: true })
   violationReason?: string;
+
+  // Masalalar (coding problems) uchun AI tomonidan hisoblangan o'rtacha ball (0-100).
+  // Umumiy `score` bilan qanday qo'shilishi frontend/hisoblash qoidasiga bog'liq bo'lishi mumkin.
+  @Column({ type: 'float', nullable: true })
+  problemsScore?: number;
+
+  @Column({ default: false })
+  problemsChecked: boolean;
 }

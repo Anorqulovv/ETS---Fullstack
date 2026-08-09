@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Plus, Sparkles, Trash2, PlayCircle, Clock } from "lucide-react";
+import { Plus, Sparkles, Trash2, PlayCircle, Clock, ChevronRight } from "lucide-react";
+
+import { isoToLocalInput, localInputToISO } from "@/lib/datetime";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
@@ -39,7 +41,7 @@ import {
   useTestReview,
   useUpdateTest,
 } from "@/lib/api/hooks";
-import type { Test, TestQuestion, TestType } from "@/lib/api/types";
+import type { CodingProblem, Test, TestQuestion, TestType } from "@/lib/api/types";
 import { mockDirections, mockGroups } from "@/lib/api/mock-data";
 import { useAuth } from "@/lib/auth-context";
 
@@ -61,6 +63,9 @@ function emptyChoice() {
 function emptyQuestion(): TestQuestion {
   return { text: "", choices: [emptyChoice(), emptyChoice()] };
 }
+function emptyProblem(): CodingProblem {
+  return { title: "", description: "", difficulty: "MEDIUM" };
+}
 
 function TestsPage() {
   const { t } = useTranslation();
@@ -69,7 +74,7 @@ function TestsPage() {
   const columns: Column<Test>[] = [
     {
       key: "title",
-      header: t("common.name"),
+      header: t("common.title"),
       cell: (r) => <span className="font-medium">{r.title}</span>,
     },
     {
@@ -119,7 +124,7 @@ function TestsPage() {
         description={t("pages.tests.subtitle")}
         navKey="tests"
         columns={columns}
-        dialogSize="lg"
+        dialogSize="xl"
         useList={testsQ.useList}
         useCreate={useCreateTest}
         useUpdate={useUpdateTest}
@@ -298,6 +303,50 @@ function TestReviewDialog({
                     </div>
                   ))}
                 </div>
+
+                {attempt.problems?.length ? (
+                  <div className="space-y-2 border-t pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Masalalar {attempt.problemsScore != null ? `(o'rtacha: ${attempt.problemsScore}/100)` : ""}
+                      </p>
+                    </div>
+                    {attempt.problems.map((p, pIdx) => {
+                      const notSubmitted = p.status === "NOT_SUBMITTED" || !p.code;
+                      const tone = notSubmitted
+                        ? "border-muted bg-muted/20"
+                        : (p.aiScore ?? 0) >= 60
+                          ? "border-success/40 bg-success/5"
+                          : "border-destructive/40 bg-destructive/5";
+                      return (
+                        <div key={p.problemId} className={`rounded-md border p-2.5 text-sm ${tone}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium">
+                              {pIdx + 1}. {p.title}
+                            </p>
+                            {notSubmitted ? (
+                              <Badge variant="secondary">Yechilmagan</Badge>
+                            ) : (
+                              <Badge variant="secondary">{p.aiScore ?? 0}/100</Badge>
+                            )}
+                          </div>
+                          {!notSubmitted ? (
+                            <>
+                              <pre className="mt-1.5 max-h-40 overflow-auto rounded bg-muted/50 p-2 font-mono text-xs">
+                                {p.code}
+                              </pre>
+                              {p.aiFeedback?.summary ? (
+                                <p className="mt-1.5 text-xs text-muted-foreground">
+                                  {p.aiFeedback.summary}
+                                </p>
+                              ) : null}
+                            </>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -316,8 +365,9 @@ function TestForm({
 }) {
   const { t } = useTranslation();
   const questions = row?.questions ?? [];
+  const problems = row?.problems ?? [];
 
-  // GET /tests (list) doesn't include the `questions` relation — only GET /tests/:id does.
+  // GET /tests (list) doesn't include the `questions`/`problems` relation — only GET /tests/:id does.
   // When editing an existing test, the row handed to us here has no questions yet, so fetch
   // them once and fill the form. Without this, saving with an empty question list would wipe
   // out every question the test already had (the backend replaces the whole set on update).
@@ -331,13 +381,28 @@ function TestForm({
       hydratedRef.current !== row.id
     ) {
       hydratedRef.current = row.id;
-      onChange({ questions: fullTest.questions ?? [] });
+      onChange({ questions: fullTest.questions ?? [], problems: fullTest.problems ?? [] });
     }
   }, [row?.id, row?.questions, fullTest, onChange]);
 
   const setQuestions = (next: TestQuestion[]) => onChange({ questions: next });
+  const setProblems = (next: CodingProblem[]) => onChange({ problems: next });
 
-  const addQuestion = () => setQuestions([...questions, emptyQuestion()]);
+  // Savollar ro'yxati uzun bo'lishi mumkin — har birini boshidanoq to'liq ochiq ko'rsatish
+  // o'rniga, sarlavhasiga bosilganda variantlari pastida ochiladi.
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(new Set());
+  const toggleQuestion = (qIdx: number) =>
+    setExpandedQuestions((prev) => {
+      const next = new Set(prev);
+      if (next.has(qIdx)) next.delete(qIdx);
+      else next.add(qIdx);
+      return next;
+    });
+
+  const addQuestion = () => {
+    setQuestions([...questions, emptyQuestion()]);
+    setExpandedQuestions((prev) => new Set(prev).add(questions.length));
+  };
   const removeQuestion = (qIdx: number) => setQuestions(questions.filter((_, i) => i !== qIdx));
   const updateQuestionText = (qIdx: number, text: string) =>
     setQuestions(questions.map((q, i) => (i === qIdx ? { ...q, text } : q)));
@@ -370,14 +435,31 @@ function TestForm({
       ),
     );
 
+  // Masalalar (coding problems) — butunlay ixtiyoriy bo'lim.
+  const [expandedProblems, setExpandedProblems] = useState<Set<number>>(new Set());
+  const toggleProblem = (pIdx: number) =>
+    setExpandedProblems((prev) => {
+      const next = new Set(prev);
+      if (next.has(pIdx)) next.delete(pIdx);
+      else next.add(pIdx);
+      return next;
+    });
+  const addProblem = () => {
+    setProblems([...problems, emptyProblem()]);
+    setExpandedProblems((prev) => new Set(prev).add(problems.length));
+  };
+  const removeProblem = (pIdx: number) => setProblems(problems.filter((_, i) => i !== pIdx));
+  const updateProblem = (pIdx: number, patch: Partial<CodingProblem>) =>
+    setProblems(problems.map((p, i) => (i === pIdx ? { ...p, ...patch } : p)));
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-1.5">
-        <Label>{t("common.name")}</Label>
+        <Label>{t("common.title")}</Label>
         <Input value={row?.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label>{t("common.type")}</Label>
           <Select value={row?.type} onValueChange={(v) => onChange({ type: v as TestType })}>
@@ -413,7 +495,7 @@ function TestForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label>Min score</Label>
           <Input
@@ -436,13 +518,21 @@ function TestForm({
           <Label>{t("common.date")}</Label>
           <Input
             type="datetime-local"
-            value={row?.startsAt ?? ""}
-            onChange={(e) => onChange({ startsAt: e.target.value })}
+            value={isoToLocalInput(row?.startsAt)}
+            onChange={(e) => onChange({ startsAt: localInputToISO(e.target.value) })}
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label>{t("common.endsAt")}</Label>
+          <Input
+            type="datetime-local"
+            value={isoToLocalInput(row?.endsAt)}
+            onChange={(e) => onChange({ endsAt: localInputToISO(e.target.value) })}
           />
         </div>
       </div>
 
-      <AiGenerateSection row={row} onChange={onChange} setQuestions={setQuestions} />
+      <AiGenerateSection row={row} onChange={onChange} setQuestions={setQuestions} setProblems={setProblems} />
 
       <div className="grid gap-2">
         <div className="flex items-center justify-between">
@@ -460,64 +550,230 @@ function TestForm({
         ) : null}
 
         <div className="space-y-3">
-          {questions.map((q, qIdx) => (
-            <Card key={qIdx} className="shadow-none">
-              <CardContent className="space-y-3 p-3">
-                <div className="flex items-start gap-2">
-                  <Textarea
-                    placeholder={`Savol ${qIdx + 1} matni`}
-                    value={q.text}
-                    onChange={(e) => updateQuestionText(qIdx, e.target.value)}
-                    className="min-h-[44px] flex-1"
+          {questions.map((q, qIdx) => {
+            const isExpanded = expandedQuestions.has(qIdx);
+            const correctChoice = q.choices.find((c) => c.isCorrect);
+            return (
+              <Card key={qIdx} className="shadow-none">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleQuestion(qIdx)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleQuestion(qIdx);
+                    }
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
+                >
+                  <ChevronRight
+                    className={"mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (isExpanded ? "rotate-90" : "")}
                   />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {qIdx + 1}. {q.text || `Savol ${qIdx + 1}`}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {correctChoice?.text
+                        ? `To'g'ri javob: ${correctChoice.text}`
+                        : "To'g'ri javob belgilanmagan"}
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="shrink-0 text-destructive"
-                    onClick={() => removeQuestion(qIdx)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeQuestion(qIdx);
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
 
-                <RadioGroup
-                  value={String(q.choices.findIndex((c) => c.isCorrect))}
-                  onValueChange={(v) => setCorrectChoice(qIdx, Number(v))}
-                  className="space-y-2"
+                {isExpanded ? (
+                  <CardContent className="space-y-3 border-t p-3 pt-3">
+                    <Textarea
+                      placeholder={`Savol ${qIdx + 1} matni`}
+                      value={q.text}
+                      onChange={(e) => updateQuestionText(qIdx, e.target.value)}
+                      className="min-h-[44px] flex-1"
+                    />
+
+                    <RadioGroup
+                      value={String(q.choices.findIndex((c) => c.isCorrect))}
+                      onValueChange={(v) => setCorrectChoice(qIdx, Number(v))}
+                      className="space-y-2"
+                    >
+                      {q.choices.map((c, cIdx) => (
+                        <div key={cIdx} className="flex items-center gap-2">
+                          <RadioGroupItem value={String(cIdx)} id={`q${qIdx}-c${cIdx}`} />
+                          <Input
+                            placeholder={`Variant ${cIdx + 1}`}
+                            value={c.text}
+                            onChange={(e) => updateChoiceText(qIdx, cIdx, e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 text-muted-foreground"
+                            onClick={() => removeChoice(qIdx, cIdx)}
+                            disabled={q.choices.length <= 2}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => addChoice(qIdx)}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Variant qo'shish
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground">
+                      To'g'ri javobni belgilash uchun variant yonidagi doiraga bosing.
+                    </p>
+                  </CardContent>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Masalalar (ixtiyoriy)</Label>
+            <p className="text-[11px] text-muted-foreground">
+              LeetCode uslubidagi masalalar — savollardan alohida, testning pastida ko'rsatiladi.
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={addProblem}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Masala qo'shish
+          </Button>
+        </div>
+
+        {problems.length === 0 ? (
+          <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+            Hozircha masala yo'q — bu bo'lim ixtiyoriy, xohlasangiz "AI orqali test yaratish"
+            bo'limida masalalar sonini belgilab AI'ga generatsiya qildirishingiz yoki qo'lda
+            qo'shishingiz mumkin.
+          </p>
+        ) : null}
+
+        <div className="space-y-3">
+          {problems.map((p, pIdx) => {
+            const isExpanded = expandedProblems.has(pIdx);
+            return (
+              <Card key={pIdx} className="shadow-none">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleProblem(pIdx)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleProblem(pIdx);
+                    }
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
                 >
-                  {q.choices.map((c, cIdx) => (
-                    <div key={cIdx} className="flex items-center gap-2">
-                      <RadioGroupItem value={String(cIdx)} id={`q${qIdx}-c${cIdx}`} />
-                      <Input
-                        placeholder={`Variant ${cIdx + 1}`}
-                        value={c.text}
-                        onChange={(e) => updateChoiceText(qIdx, cIdx, e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 text-muted-foreground"
-                        onClick={() => removeChoice(qIdx, cIdx)}
-                        disabled={q.choices.length <= 2}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                  <ChevronRight
+                    className={"mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (isExpanded ? "rotate-90" : "")}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {pIdx + 1}. {p.title || `Masala ${pIdx + 1}`}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      Daraja: {p.difficulty === "SIMPLE" ? "Sodda" : p.difficulty === "DEEP" ? "Chuqur" : "O'rta"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeProblem(pIdx);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {isExpanded ? (
+                  <CardContent className="space-y-3 border-t p-3 pt-3">
+                    <Input
+                      placeholder="Masala nomi"
+                      value={p.title}
+                      onChange={(e) => updateProblem(pIdx, { title: e.target.value })}
+                    />
+                    <Textarea
+                      placeholder="Masala sharti (to'liq matn)"
+                      value={p.description}
+                      onChange={(e) => updateProblem(pIdx, { description: e.target.value })}
+                      className="min-h-[100px]"
+                    />
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="col-span-2 grid gap-1.5 sm:col-span-1">
+                        <Label className="text-xs">Daraja</Label>
+                        <Select
+                          value={p.difficulty}
+                          onValueChange={(v) => updateProblem(pIdx, { difficulty: v as CodingProblem["difficulty"] })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SIMPLE">Sodda</SelectItem>
+                            <SelectItem value="MEDIUM">O'rta</SelectItem>
+                            <SelectItem value="DEEP">Chuqur</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  ))}
-                </RadioGroup>
-                <Button type="button" variant="ghost" size="sm" onClick={() => addChoice(qIdx)}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Variant qo'shish
-                </Button>
-                <p className="text-[11px] text-muted-foreground">
-                  To'g'ri javobni belgilash uchun variant yonidagi doiraga bosing.
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+                    <Textarea
+                      placeholder="Namuna kirish (ixtiyoriy)"
+                      value={p.sampleInput ?? ""}
+                      onChange={(e) => updateProblem(pIdx, { sampleInput: e.target.value })}
+                      className="min-h-[44px] font-mono text-xs"
+                    />
+                    <Textarea
+                      placeholder="Namuna chiqish (ixtiyoriy)"
+                      value={p.sampleOutput ?? ""}
+                      onChange={(e) => updateProblem(pIdx, { sampleOutput: e.target.value })}
+                      className="min-h-[44px] font-mono text-xs"
+                    />
+                    <Input
+                      placeholder="Cheklovlar (ixtiyoriy, masalan: 1 <= n <= 10^5)"
+                      value={p.constraints ?? ""}
+                      onChange={(e) => updateProblem(pIdx, { constraints: e.target.value })}
+                    />
+                    <Textarea
+                      placeholder="Starter kod (ixtiyoriy)"
+                      value={p.starterCode ?? ""}
+                      onChange={(e) => updateProblem(pIdx, { starterCode: e.target.value })}
+                      className="min-h-[60px] font-mono text-xs"
+                    />
+                    <Textarea
+                      placeholder="Namunaviy to'g'ri yechim — AI tekshiruvida yordamchi sifatida ishlatiladi, o'quvchiga ko'rsatilmaydi"
+                      value={p.referenceSolution ?? ""}
+                      onChange={(e) => updateProblem(pIdx, { referenceSolution: e.target.value })}
+                      className="min-h-[60px] font-mono text-xs"
+                    />
+                  </CardContent>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -533,10 +789,12 @@ function AiGenerateSection({
   row,
   onChange,
   setQuestions,
+  setProblems,
 }: {
   row: Partial<Test> | null;
   onChange: (patch: Partial<Test>) => void;
   setQuestions: (next: TestQuestion[]) => void;
+  setProblems: (next: CodingProblem[]) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -544,6 +802,7 @@ function AiGenerateSection({
   const [lessonNumber, setLessonNumber] = useState("");
   const [count, setCount] = useState("10");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [problemCount, setProblemCount] = useState("");
   const aiGenerate = useAiGenerateTest();
   // Called unconditionally (not inside `{open ? ... : null}`) — a hook can never be called
   // conditionally within the same component instance, or React throws "Rendered more hooks
@@ -563,14 +822,17 @@ function AiGenerateSection({
         lessonNumber: lessonNumber ? Number(lessonNumber) : undefined,
         count: count ? Number(count) : undefined,
         difficulty,
+        problemCount: problemCount ? Number(problemCount) : undefined,
       },
       {
         onSuccess: (draft) => {
           onChange({
             title: draft.title ?? row?.title,
             minScore: draft.minScore ?? row?.minScore,
+            problemCount: draft.problemCount ?? row?.problemCount,
           });
           if (draft.questions?.length) setQuestions(draft.questions);
+          if (draft.problems?.length) setProblems(draft.problems);
           setOpen(false);
         },
       },
@@ -621,7 +883,7 @@ function AiGenerateSection({
               onChange={(e) => setTopic(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="grid gap-1.5">
               <Label>{t("pages.tests.lessonNumber")}</Label>
               <Input
@@ -659,6 +921,23 @@ function AiGenerateSection({
               </Select>
             </div>
           </div>
+
+          <div className="grid gap-1.5 rounded-md border border-dashed p-2.5">
+            <Label>Masalalar soni (butunlay ixtiyoriy)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={20}
+              placeholder="masalan: 5 — bo'sh qoldirsangiz masala qo'shilmaydi"
+              value={problemCount}
+              onChange={(e) => setProblemCount(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              AI shu mavzudan LeetCode uslubidagi masalalar yaratadi (savollar bilan
+              aralashtirmaydi), daraja avtomatik sodda→o'rta→chuqur bo'yicha taqsimlanadi.
+            </p>
+          </div>
+
           <Button
             type="button"
             size="sm"

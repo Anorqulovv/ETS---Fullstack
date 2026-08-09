@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNumber, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, IsStrongPassword, Matches } from 'class-validator';
 import { Gender } from 'src/common/enums/gender.enum';
 
 export class UpdateParentDto {
@@ -33,7 +33,10 @@ export class UpdateParentDto {
 
   @ApiPropertyOptional({ example: 'NewPassword123!' })
   @IsOptional()
-  @MinLength(6)
+  @IsStrongPassword(
+    { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
+    { message: "Parol kuchli bo'lishi kerak: kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi" },
+  )
   password?: string;
 
   @ApiPropertyOptional({ example: '123456789', description: 'Telegram ID — botga ulanish uchun' })

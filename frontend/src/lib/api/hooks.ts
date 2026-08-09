@@ -25,13 +25,22 @@ import type {
   PaymentSettings as PaymentSettingsT,
   StudentBalance,
   ShopItem,
+  SalaryInfo,
+  SalarySettingsT,
   Student,
+  StudentDetail,
   StartTestResponse,
   SubmitTestResponse,
   Teacher,
   Test,
   TestQuestion,
   User,
+  CodingProblem,
+  CodingSubmission,
+  SubmitCodingProblemResponse,
+  MyCodingResultsResponse,
+  ProblemDifficulty,
+  CodingSubmissionFeedback,
 } from "./types";
 
 /**
@@ -329,6 +338,16 @@ export const studentsQ = createCrudHooks<Student>(
   flattenStudent,
   ["fullName", "username", "phone", "cardId", "groupId", "parentId", "password", "gender"],
 );
+
+/** GET /students/:id — full detail (group/teacher/direction, attendance, test results, stats). */
+export function useStudentDetail(id?: number | string) {
+  return useQuery({
+    queryKey: ["students", id, "detail"],
+    queryFn: () => apiRequest<StudentDetail>({ url: `${RESOURCES.students}/${id}`, method: "GET" }),
+    enabled: id != null,
+  });
+}
+
 export const parentsQ = createCrudHooks<Parent>(
   RESOURCES.parents,
   "parents",
@@ -362,6 +381,18 @@ export function useChildrenPayments() {
   });
 }
 
+/** GET /payments/children-debt — real qarzdorlik (kurs narxi/chegirma asosida), ota-ona uchun. */
+export function useChildrenDebt() {
+  return useQuery({
+    queryKey: ["payments", "children-debt"],
+    queryFn: () =>
+      apiRequest<{ totalDebt: number; childrenWithDebt: number; childrenCount: number }>({
+        url: `${RESOURCES.payments}/children-debt`,
+        method: "GET",
+      }),
+  });
+}
+
 export const paymentsQ = createCrudHooks<Payment>(
   RESOURCES.payments,
   "payments",
@@ -381,6 +412,23 @@ function sanitizeTestQuestions(questions?: TestQuestion[]) {
     text: q.text,
     choices: q.choices.map((c) => ({ text: c.text, isCorrect: !!c.isCorrect })),
   }));
+}
+
+/** Same reasoning as sanitizeTestQuestions — strip `id`s and any extra fields before sending. */
+function sanitizeCodingProblems(problems?: CodingProblem[]) {
+  if (!problems) return problems;
+  return problems
+    .filter((p) => p.title?.trim() && p.description?.trim())
+    .map((p) => ({
+      title: p.title,
+      description: p.description,
+      difficulty: p.difficulty,
+      starterCode: p.starterCode || undefined,
+      sampleInput: p.sampleInput || undefined,
+      sampleOutput: p.sampleOutput || undefined,
+      constraints: p.constraints || undefined,
+      referenceSolution: p.referenceSolution || undefined,
+    }));
 }
 
 /**
@@ -405,6 +453,9 @@ function pickTestDtoFields(payload: Partial<Test>) {
     weekNumber,
     monthNumber,
     questions,
+    problemCount,
+    problemDifficultyMix,
+    problems,
   } = payload;
   return {
     title,
@@ -420,6 +471,9 @@ function pickTestDtoFields(payload: Partial<Test>) {
     weekNumber,
     monthNumber,
     questions: sanitizeTestQuestions(questions),
+    problemCount,
+    problemDifficultyMix,
+    problems: sanitizeCodingProblems(problems),
   };
 }
 
@@ -471,6 +525,18 @@ export interface TestReview {
       isCorrect: boolean;
     }[];
     wrongQuestions: unknown[];
+    problemsScore: number | null;
+    problemsChecked: boolean;
+    problems: {
+      problemId: number;
+      title: string;
+      difficulty: ProblemDifficulty;
+      code: string | null;
+      language: string | null;
+      status: "PENDING" | "CHECKING" | "CHECKED" | "FAILED" | "NOT_SUBMITTED";
+      aiScore: number | null;
+      aiFeedback: CodingSubmissionFeedback | null;
+    }[];
   }[];
 }
 
@@ -631,6 +697,68 @@ export function usePurchaseShopItem() {
   });
 }
 
+// ==================== OYLIK (dars kuni/soati asosida) ====================
+
+/** GET /salary/settings — 1-dars uchun standart narxlar (o'qituvchi/support). */
+export function useSalarySettings() {
+  return useQuery({
+    queryKey: ["salary", "settings"],
+    queryFn: () => apiRequest<SalarySettingsT>({ url: "/salary/settings", method: "GET" }),
+  });
+}
+
+export function useUpdateSalarySettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SalarySettingsT) =>
+      apiRequest<SalarySettingsT>({ url: "/salary/settings", method: "PATCH", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["salary"] });
+      toast.success("Standart narxlar yangilandi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Saqlab bo'lmadi")),
+  });
+}
+
+/** GET /salary/overview — barcha o'qituvchi/support'larning shu oygi oyligi (SUPERADMIN/ADMIN). */
+export function useSalaryOverview(month?: string) {
+  return useQuery({
+    queryKey: ["salary", "overview", month],
+    queryFn: () => apiRequest<SalaryInfo[]>({ url: "/salary/overview", method: "GET", params: { month } }),
+  });
+}
+
+/** GET /salary/my — TEACHER/SUPPORT o'zining oyligi. Pass enabled=false for other roles, since
+ * this endpoint 403s for anyone but TEACHER/SUPPORT. */
+export function useMySalary(month?: string, enabled = true) {
+  return useQuery({
+    queryKey: ["salary", "my", month],
+    queryFn: () => apiRequest<SalaryInfo>({ url: "/salary/my", method: "GET", params: { month } }),
+    enabled,
+  });
+}
+
+/** PATCH /salary/rate/:userId — SUPERADMIN, bitta xodimning rejimi/narxini belgilaydi. */
+export function useSetUserSalary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      ...payload
+    }: {
+      userId: number;
+      salaryMode?: "FIXED" | "PER_LESSON";
+      perLessonRate?: number;
+      salary?: number;
+    }) => apiRequest<Teacher>({ url: `/salary/rate/${userId}`, method: "PATCH", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["salary"] });
+      toast.success("Saqlandi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Saqlab bo'lmadi")),
+  });
+}
+
 function toastCreated() {
   return "Muvaffaqiyatli yaratildi";
 }
@@ -651,6 +779,9 @@ export interface AiGenerateTestPayload {
   lessonNumber?: number;
   count?: number;
   difficulty?: "easy" | "medium" | "hard";
+  /** Ixtiyoriy — berilmasa yoki 0 bo'lsa, AI umuman masala qo'shmaydi. */
+  problemCount?: number;
+  problemDifficultyMix?: Record<string, number>;
 }
 
 /**
@@ -723,6 +854,58 @@ export function useMarkViolation() {
   });
 }
 
+// ==================== MASALALAR (coding problems) ====================
+
+/** GET /tests/:testId/problems — testga biriktirilgan masalalar (student uchun sanitized). */
+export function useTestProblems(testId: number | string | undefined) {
+  return useQuery({
+    queryKey: ["tests", "problems", testId],
+    queryFn: () => apiRequest<CodingProblem[]>({ url: `${RESOURCES.tests}/${testId}/problems`, method: "GET" }),
+    enabled: testId != null,
+  });
+}
+
+/** POST /tests/problems/submit — kodni yuboradi, AI daraja bo'yicha tekshirib natija qaytaradi. */
+export function useSubmitCodingProblem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { problemId: number; testId: number; code: string; language?: string }) =>
+      apiRequest<SubmitCodingProblemResponse>({
+        url: `${RESOURCES.tests}/problems/submit`,
+        method: "POST",
+        data: payload,
+      }),
+    onSuccess: (_data, variables) =>
+      void qc.invalidateQueries({ queryKey: ["tests", "problems", "my-results", variables.testId] }),
+    onError: (error: unknown) => {
+      toast.error(errorMessage(error, "Masalani tekshirishda xatolik"));
+    },
+  });
+}
+
+/** GET /tests/:testId/problems/my-results — o'quvchining shu testdagi barcha masala natijalari. */
+export function useMyCodingResults(testId: number | string | undefined) {
+  return useQuery({
+    queryKey: ["tests", "problems", "my-results", testId],
+    queryFn: () =>
+      apiRequest<MyCodingResultsResponse>({ url: `${RESOURCES.tests}/${testId}/problems/my-results`, method: "GET" }),
+    enabled: testId != null,
+  });
+}
+
+/** GET /tests/:testId/student/:studentId/problems — ustoz/admin uchun bitta o'quvchining yechimlari. */
+export function useStudentProblemReview(testId: number | string | undefined, studentId: number | string | undefined) {
+  return useQuery({
+    queryKey: ["tests", "problems", "review", testId, studentId],
+    queryFn: () =>
+      apiRequest<CodingSubmission[]>({
+        url: `${RESOURCES.tests}/${testId}/student/${studentId}/problems`,
+        method: "GET",
+      }),
+    enabled: testId != null && studentId != null,
+  });
+}
+
 export const notificationsQ = createCrudHooks<NotificationItem>(
   RESOURCES.notifications,
   "notifications",
@@ -757,6 +940,9 @@ export const salesQ = createCrudHooks<User>("/sales", "sales", undefined, undefi
   ...STAFF_FIELDS,
 ]);
 export const financeQ = createCrudHooks<User>("/finance", "finance", undefined, undefined, [
+  ...STAFF_FIELDS,
+]);
+export const hrQ = createCrudHooks<User>("/hr", "hr", undefined, undefined, [
   ...STAFF_FIELDS,
 ]);
 

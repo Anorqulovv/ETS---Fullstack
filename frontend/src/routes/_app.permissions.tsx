@@ -37,7 +37,7 @@ function PermissionsPage() {
   const columns: Column<GrantableUser>[] = [
     {
       key: "fullName",
-      header: t("common.name"),
+      header: t("common.title"),
       cell: (r) => <span className="font-medium">{r.fullName}</span>,
     },
     { key: "username", header: t("common.username"), cell: (r) => `@${r.username}` },

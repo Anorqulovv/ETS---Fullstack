@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { CalendarX2 } from "lucide-react";
+import { CalendarX2, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
@@ -49,6 +49,142 @@ const STATUSES: GroupStatus[] = ["ACTIVE", "PAUSED", "FINISHED"];
 // Backend faqat shu 7 ta o'zbekcha nom bilan ishlaydi (GroupsService.validateLessonDays) —
 // Yakshanba (yakshanba) tanlab bo'lmaydi.
 const LESSON_DAYS = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
+
+// Backend bilan bir xil xarita (GroupsService.WEEKDAY_INDEX) — JS Date.getDay(): 0=Yakshanba.
+const WEEKDAY_INDEX: Record<string, number> = {
+  Yakshanba: 0,
+  Dushanba: 1,
+  Seshanba: 2,
+  Chorshanba: 3,
+  Payshanba: 4,
+  Juma: 5,
+  Shanba: 6,
+};
+
+type LessonStatus = "held" | "cancelled" | "pending";
+
+function monthLabel(year: number, month: number) {
+  return new Date(year, month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+/** Read-only month calendar for a group's schedule — marks each lesson-day date as already held,
+ * cancelled (see CancelledLesson), or still pending (today or in the future). */
+function GroupCalendarDialog({ group, open, onOpenChange }: { group: Group; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { t } = useTranslation();
+  const { data: cancelled } = useCancelledLessons(open ? Number(group.id) : undefined);
+  const today = new Date();
+  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const allowedWeekdays = new Set((group.lessonDays ?? []).map((d) => WEEKDAY_INDEX[d]).filter((v) => v !== undefined));
+  const cancelledDates = new Set((cancelled ?? []).map((c) => c.date));
+  const start = group.startDate ? new Date(`${group.startDate.slice(0, 10)}T00:00:00`) : null;
+  const end = group.endDate ? new Date(`${group.endDate.slice(0, 10)}T00:00:00`) : null;
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1);
+  // Dushanba = birinchi ustun bo'lishi uchun (getDay(): 0=Yak..6=Shanba -> 0=Dush..6=Yak)
+  const leadingBlanks = (firstDay.getDay() + 6) % 7;
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  const cells: { date: string; day: number; status: LessonStatus | null }[] = [];
+  for (let i = 0; i < leadingBlanks; i++) cells.push({ date: "", day: 0, status: null });
+  for (let day = 1; day <= totalDays; day++) {
+    const d = new Date(year, month, day);
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    let status: LessonStatus | null = null;
+    const isLessonDay = allowedWeekdays.has(d.getDay()) && (!start || d >= start) && (!end || d <= end);
+    if (isLessonDay) {
+      if (cancelledDates.has(dateStr)) status = "cancelled";
+      else if (dateStr < todayStr) status = "held";
+      else status = "pending";
+    }
+    cells.push({ date: dateStr, day, status });
+  }
+
+  const STATUS_STYLE: Record<LessonStatus, string> = {
+    held: "bg-success/15 text-success border-success/30",
+    cancelled: "bg-destructive/15 text-destructive border-destructive/30 line-through",
+    pending: "bg-warning/15 text-warning-foreground border-warning/30",
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {group.name} — {t("pages.groups.calendarTitle")}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex items-center justify-between">
+          <Button size="icon" variant="ghost" onClick={() => setCursor(new Date(year, month - 1, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium capitalize">{monthLabel(year, month)}</span>
+          <Button size="icon" variant="ghost" onClick={() => setCursor(new Date(year, month + 1, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {group.lessonTime ? (
+          <p className="text-xs text-muted-foreground">
+            {t("pages.groups.lessonTime")}: {group.lessonTime}
+          </p>
+        ) : null}
+
+        <div className="grid grid-cols-7 gap-1 text-center text-xs">
+          {["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"].map((d) => (
+            <div key={d} className="py-1 font-medium text-muted-foreground">
+              {d}
+            </div>
+          ))}
+          {cells.map((c, i) =>
+            c.day === 0 ? (
+              <div key={i} />
+            ) : (
+              <div
+                key={i}
+                className={
+                  "flex h-8 items-center justify-center rounded-md border text-xs " +
+                  (c.status ? STATUS_STYLE[c.status] : "text-muted-foreground/50")
+                }
+              >
+                {c.day}
+              </div>
+            ),
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-3 text-xs">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-success" /> {t("pages.groups.lessonHeld")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-destructive" /> {t("pages.groups.lessonCancelled")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-warning" /> {t("pages.groups.lessonPending")}
+          </span>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GroupCalendarButton({ group }: { group: Group }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" size="sm" variant="ghost" title={t("pages.groups.calendar")} onClick={() => setOpen(true)}>
+        <CalendarDays className="h-4 w-4" />
+      </Button>
+      {open ? <GroupCalendarDialog group={group} open={open} onOpenChange={setOpen} /> : null}
+    </>
+  );
+}
 
 /** Compact version of the cancel-lesson action for the table row — doesn't require full group
  * edit rights, since backend grants this to TEACHER independently (POST /groups/:id/cancel-lesson
@@ -123,7 +259,7 @@ function GroupsPage() {
   const columns: Column<Group>[] = [
     {
       key: "name",
-      header: t("common.name"),
+      header: t("common.title"),
       cell: (r) => <span className="font-medium">{r.name}</span>,
     },
     {
@@ -166,6 +302,11 @@ function GroupsPage() {
         </Badge>
       ),
     },
+    {
+      key: "calendar",
+      header: "",
+      cell: (r) => <GroupCalendarButton group={r} />,
+    },
     ...(canCancelLesson
       ? [
           {
@@ -198,7 +339,7 @@ function GroupsPage() {
         return (
           <div className="grid gap-4">
             <div className="grid gap-1.5">
-              <Label>{t("common.name")}</Label>
+              <Label>{t("common.title")}</Label>
               <Input value={row?.name ?? ""} onChange={(e) => onChange({ name: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -38,7 +38,7 @@ interface CrudPageProps<T> {
   editTitle?: string;
   emptyTitle?: string;
   keyOf?: (row: T) => string | number;
-  dialogSize?: "sm" | "md" | "lg";
+  dialogSize?: "sm" | "md" | "lg" | "xl";
   /** Client-side check run right before create/update — return an error message to block the
    * save (shown as a toast), or null/undefined when the form is fine. */
   validate?: (row: Partial<T>) => string | null | undefined;

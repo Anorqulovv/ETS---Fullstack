@@ -7,6 +7,8 @@ import { TestResult } from '../../databases/entities/test-result.entity';
 import { Student } from '../../databases/entities/student.entity';
 import { Parent } from '../../databases/entities/parent.entity';
 import { Question } from '../../databases/entities/question.entity';
+import { CodingProblem } from '../../databases/entities/coding-problem.entity';
+import { CodingSubmission } from '../../databases/entities/coding-submission.entity';
 
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
@@ -14,6 +16,7 @@ import { AddScoreDto } from './dto/add-score.dto';
 import { GenerateMonthlyTestsDto } from './dto/generate-monthly-tests.dto';
 import { CreateBankQuestionDto } from './dto/create-bank-question.dto';
 import { AiGenerateTestDto } from './dto/ai-generate-test.dto';
+import { SubmitCodingProblemDto } from './dto/submit-coding-problem.dto';
 import { envConfig } from '../../common/config';
 
 import { TelegramService } from '../telegram/telegram.service';
@@ -22,6 +25,7 @@ import { ISucces } from '../../infrastructure/utils/succes-interface';
 import { UserRole } from '../../common/enums/role.enum';
 import { TestType } from '../../common/enums/test.enum';
 import { TestStatus } from '../../common/enums/testStatus.enum';
+import { ProblemDifficulty, CodingSubmissionStatus } from '../../common/enums/problem-difficulty.enum';
 import { GamificationService } from '../gamification/gamification.service';
 
 @Injectable()
@@ -32,6 +36,8 @@ export class TestsService implements OnModuleInit {
     @InjectRepository(Student) private studentRepo: Repository<Student>,
     @InjectRepository(Parent) private parentRepo: Repository<Parent>,
     @InjectRepository(Question) private questionRepo: Repository<Question>,
+    @InjectRepository(CodingProblem) private problemRepo: Repository<CodingProblem>,
+    @InjectRepository(CodingSubmission) private submissionRepo: Repository<CodingSubmission>,
     private readonly telegramService: TelegramService,
     private readonly gamificationService: GamificationService,
   ) { }
@@ -135,10 +141,19 @@ export class TestsService implements OnModuleInit {
     return test;
   }
 
-  private ensureTestCanBeSubmitted(test: Test) {
+  private ensureTestCanBeSubmitted(test: Test, options?: { isRetry?: boolean }) {
     const now = new Date();
     const start = this.parseDateTime(test.startsAt);
     const end = this.parseDateTime(test.endsAt);
+
+    // Ustoz "qayta ishlashga ruxsat berish" orqali maxsus ruxsat bergan bo'lsa (ya'ni bu
+    // o'quvchi uchun oldingi urinish(lar) mavjud — chunki bunday urinish faqat teacher
+    // reset qilgandan keyingina yaratiladi), testning umumiy muddati/holati bu o'quvchini
+    // endi bloklamasligi kerak. Aks holda "ruxsat berish" tugmasi hech qanday amal
+    // qilmas edi — chunki muddati o'tgan test `syncTestStatusByTime` tomonidan avtomatik
+    // NOACTIVE qilib qo'yiladi va hech kim (hatto ruxsat berilgan o'quvchi ham) qayta
+    // kira olmas edi.
+    if (options?.isRetry) return;
 
     if (test.status !== TestStatus.ACTIVE) {
       throw new ForbiddenException("Bu test faol emas");
@@ -283,6 +298,14 @@ Talablar:
         };
       });
 
+    // Masalalar (coding problems) — butunlay ixtiyoriy. Ustoz problemCount bermasa,
+    // AI hech qanday masala qo'shmaydi va savollar bilan aralashtirmaydi.
+    let generatedProblems: any[] = [];
+
+    if (dto.problemCount && dto.problemCount > 0) {
+      generatedProblems = await this.generateCodingProblemsWithAI(dto);
+    }
+
     return succesRes({
       title: parsed.title || `${dto.topic} testi`,
       type: dto.type,
@@ -292,7 +315,127 @@ Talablar:
       minScore: 60,
       generatedBy: 'AI',
       questions: normalizedQuestions,
+      problemCount: dto.problemCount ?? 0,
+      problemDifficultyMix: dto.problemDifficultyMix ?? null,
+      problems: generatedProblems,
     });
+  }
+
+  // Berilgan daraja taqsimoti (yoki avtomatik taqsimot) asosida masalalar ro'yxati tuziladi.
+  private buildProblemDifficultyList(count: number, mix?: Record<string, number>): ProblemDifficulty[] {
+    if (mix && Object.keys(mix).length > 0) {
+      const list: ProblemDifficulty[] = [];
+      for (const key of Object.keys(mix)) {
+        const level = key.toUpperCase() as ProblemDifficulty;
+        if (!Object.values(ProblemDifficulty).includes(level)) continue;
+        for (let i = 0; i < Number(mix[key] || 0); i++) list.push(level);
+      }
+      if (list.length > 0) return list.slice(0, count);
+    }
+
+    // Avtomatik taqsimot: sodda -> o'rta -> chuqur ketma-ketligida, teng bo'lishga harakat qiladi
+    const order = [ProblemDifficulty.SIMPLE, ProblemDifficulty.MEDIUM, ProblemDifficulty.DEEP];
+    const list: ProblemDifficulty[] = [];
+    for (let i = 0; i < count; i++) list.push(order[i % order.length]);
+    return list;
+  }
+
+  private async generateCodingProblemsWithAI(dto: AiGenerateTestDto): Promise<any[]> {
+    const count = dto.problemCount ?? 0;
+    if (count <= 0) return [];
+
+    const difficultyList = this.buildProblemDifficultyList(count, dto.problemDifficultyMix);
+
+    const prompt = `
+Sen dasturlash o'quv markazi uchun LeetCode uslubidagi masalalar tuzuvchi assistantsan.
+Faqat valid JSON qaytar. Markdown ishlatma, izoh yozma.
+
+Mavzu: ${dto.topic}
+Dars raqami: ${dto.lessonNumber ?? 'berilmagan'}
+Masalalar soni: ${count}
+Har bir masalaning darajasi ketma-ket shu ro'yxatda berilgan (aynan shu tartibda va shu sonda masala yarat):
+${JSON.stringify(difficultyList)}
+
+Daraja tushunchalari (tekshiruv chuqurligini belgilaydi, lekin masala matnini ham shunga mos qiyinlikda yoz):
+- SIMPLE: sodda, bitta tushuncha (masalan sikl yoki shart) yetarli bo'ladigan masala
+- MEDIUM: bir nechta tushunchani birlashtiradigan, oddiy edge-case'lar bor masala
+- DEEP: murakkab algoritmik fikrlash, murakkablik (time/space complexity) haqida o'ylashni talab qiladigan masala
+
+JSON format:
+{
+  "problems": [
+    {
+      "title": "masala nomi",
+      "difficulty": "SIMPLE|MEDIUM|DEEP",
+      "description": "to'liq shart matni, kirish/chiqish formati bilan",
+      "sampleInput": "namuna kirish",
+      "sampleOutput": "namuna chiqish",
+      "constraints": "cheklovlar (masalan: 1 <= n <= 10^5)",
+      "starterCode": "function solve() {\\n  // yechim shu yerga\\n}",
+      "referenceSolution": "to'g'ri ishlaydigan namunaviy yechim kodi"
+    }
+  ]
+}
+
+Talablar:
+- Masala matnlari o'zbek tilida yozilsin (kod va o'zgaruvchi nomlari inglizcha bo'lishi mumkin).
+- referenceSolution ALBATTA to'g'ri ishlaydigan, to'liq kod bo'lsin — bu keyinchalik AI tekshiruvida ishlatiladi va o'quvchiga hech qachon ko'rsatilmaydi.
+- Javob faqat JSON bo'lsin, undan boshqa hech narsa yozma.
+`;
+
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${envConfig.AI.GEMINI_MODEL}:generateContent?key=${envConfig.AI.GEMINI_API_KEY}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.5, responseMimeType: 'application/json' },
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new ForbiddenException(`AI xatolik (masalalar): ${errText}`);
+    }
+
+    const aiData: any = await response.json();
+    const rawText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new ForbiddenException('AI masalalar uchun javob qaytarmadi');
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (!match) throw new ForbiddenException('AI masalalar uchun valid JSON qaytarmadi');
+      parsed = JSON.parse(match[0]);
+    }
+
+    const problems = Array.isArray(parsed.problems) ? parsed.problems : [];
+
+    return problems
+      .filter((p: any) => p?.title && p?.description)
+      .slice(0, count)
+      .map((p: any, index: number) => {
+        const rawDifficulty = String(p.difficulty || '').toUpperCase();
+        const difficulty = Object.values(ProblemDifficulty).includes(rawDifficulty as ProblemDifficulty)
+          ? (rawDifficulty as ProblemDifficulty)
+          : (difficultyList[index] ?? ProblemDifficulty.MEDIUM);
+
+        return {
+          title: String(p.title),
+          description: String(p.description),
+          difficulty,
+          sampleInput: p.sampleInput ? String(p.sampleInput) : undefined,
+          sampleOutput: p.sampleOutput ? String(p.sampleOutput) : undefined,
+          constraints: p.constraints ? String(p.constraints) : undefined,
+          starterCode: p.starterCode ? String(p.starterCode) : undefined,
+          referenceSolution: p.referenceSolution ? String(p.referenceSolution) : undefined,
+          generatedBy: 'AI',
+        };
+      });
   }
 
 
@@ -723,6 +866,7 @@ Talablar:
         results: { student: { user: true } },
         direction: true,
         group: true,
+        problems: true,
       },
       order: { questions: { id: 'ASC' } },
     });
@@ -758,7 +902,14 @@ Talablar:
         ...q,
         choices: (q.choices ?? []).map(({ isCorrect, ...choice }) => choice),
       }));
-      return succesRes({ ...test, questions: sanitizedQuestions, results: myResults });
+      // referenceSolution AI tekshiruvida yordamchi — o'quvchiga hech qachon yuborilmaydi.
+      const sanitizedProblems = (test.problems ?? []).map(({ referenceSolution, ...p }) => p);
+      return succesRes({
+        ...test,
+        questions: sanitizedQuestions,
+        problems: sanitizedProblems,
+        results: myResults,
+      });
     }
 
     // Ustoz/Admin: barcha o'quvchilarning barcha urinishlari
@@ -780,10 +931,13 @@ Talablar:
       (dto as any).status = TestStatus.NOACTIVE;
     }
 
-    // `questions` is a relation, not a column — Repository.update() below only touches
-    // scalar columns and silently no-ops on relation properties, so it's handled separately
-    // here via save() (which cascades to Choice thanks to `cascade: true` on Question.choices).
-    const { questions, ...scalarDto } = dto as UpdateTestDto & { questions?: any[] };
+    // `questions`/`problems` are relations, not columns — Repository.update() below only
+    // touches scalar columns and silently no-ops on relation properties, so they're handled
+    // separately here (delete + recreate, mirroring the questions/choices cascade approach).
+    const { questions, problems, ...scalarDto } = dto as UpdateTestDto & {
+      questions?: any[];
+      problems?: any[];
+    };
 
     if (questions !== undefined) {
       await this.questionRepo.delete({ testId: id });
@@ -799,12 +953,33 @@ Talablar:
       }
     }
 
+    if (problems !== undefined) {
+      await this.problemRepo.delete({ testId: id });
+      if (problems.length > 0) {
+        const newProblems = problems.map((p) =>
+          this.problemRepo.create({
+            title: p.title,
+            description: p.description,
+            difficulty: p.difficulty ?? ProblemDifficulty.MEDIUM,
+            starterCode: p.starterCode,
+            sampleInput: p.sampleInput,
+            sampleOutput: p.sampleOutput,
+            constraints: p.constraints,
+            referenceSolution: p.referenceSolution,
+            testId: id,
+            generatedBy: p.generatedBy ?? 'MANUAL',
+          }),
+        );
+        await this.problemRepo.save(newProblems);
+      }
+    }
+
     if (Object.keys(scalarDto).length > 0) {
       await this.testRepo.update(id, scalarDto);
     }
     const updated = await this.testRepo.findOne({
       where: { id },
-      relations: ['direction', 'group', 'questions', 'questions.choices'],
+      relations: ['direction', 'group', 'questions', 'questions.choices', 'problems'],
     });
 
     return succesRes(updated!);
@@ -905,6 +1080,18 @@ Talablar:
       order: { attempt: 'ASC' },
     });
 
+    // Masalalar (agar testga biriktirilgan bo'lsa) — har bir urinish (attempt) uchun
+    // shu urinishga tegishli submission'lar bilan bog'lab beriladi.
+    const problems = await this.problemRepo.find({ where: { testId }, order: { id: 'ASC' } });
+    const problemIds = problems.map((p) => p.id);
+    const submissions =
+      problemIds.length > 0
+        ? await this.submissionRepo.find({
+            where: { studentId, problemId: In(problemIds) },
+            order: { createdAt: 'ASC' },
+          })
+        : [];
+
     const attempts = results.map((result) => {
       const answerMap = (result.answers ?? {}) as Record<string, number>;
 
@@ -932,6 +1119,24 @@ Talablar:
         createdAt: result.createdAt,
         questions: questionReviews,
         wrongQuestions: questionReviews.filter((q) => !q.isCorrect),
+        // Masalalar — faqat shu urinish (testResultId) doirasida topshirilganlari
+        problemsScore: result.problemsScore ?? null,
+        problemsChecked: result.problemsChecked ?? false,
+        problems: problems.map((problem) => {
+          const submission = submissions.find(
+            (s) => s.problemId === problem.id && s.testResultId === result.id,
+          );
+          return {
+            problemId: problem.id,
+            title: problem.title,
+            difficulty: problem.difficulty,
+            code: submission?.code ?? null,
+            language: submission?.language ?? null,
+            status: submission?.status ?? 'NOT_SUBMITTED',
+            aiScore: submission?.aiScore ?? null,
+            aiFeedback: submission?.aiFeedback ?? null,
+          };
+        }),
       };
     });
 
@@ -1035,7 +1240,15 @@ Talablar:
     if (!test) throw new NotFoundException("Test topilmadi");
 
     await this.syncTestStatusByTime(test);
-    this.ensureTestCanBeSubmitted(test);
+
+    // Oldin kamida bitta urinish (hatto tugallanmagan/topshirilmagan bo'lsa ham) mavjud
+    // bo'lsa — bu "davom ettirish" (sahifa qayta yuklandi) yoki ustoz reset qilgandan
+    // keyingi qayta urinish. Ikkala holatda ham testning umumiy muddati (endsAt)
+    // o'quvchini bloklamasligi kerak.
+    const previousAttemptsCount = await this.resultRepo.count({
+      where: { testId, studentId: student.id },
+    });
+    this.ensureTestCanBeSubmitted(test, { isRetry: previousAttemptsCount > 0 });
 
     const isOwnGroupTest = student.groupId != null && test.groupId === student.groupId;
     const isDirectionTest =
@@ -1071,9 +1284,7 @@ Talablar:
       });
     }
 
-    const attemptCount = await this.resultRepo.count({
-      where: { testId, studentId: student.id },
-    });
+    const attemptCount = previousAttemptsCount;
 
     const result = this.resultRepo.create({
       testId,
@@ -1181,12 +1392,16 @@ Talablar:
     if (!test) throw new NotFoundException('Test topilmadi');
 
     await this.syncTestStatusByTime(test);
-    this.ensureTestCanBeSubmitted(test);
 
     // Joriy urinish mavjudmi?
     let existingResult = await this.resultRepo.findOne({
       where: { testId, studentId: student.id, isCurrent: true },
     });
+
+    // attempt > 1 — bu ustoz "qayta ishlashga ruxsat berish" orqali maxsus ruxsat bergan
+    // urinish (xuddi startTest'dagi kabi) — testning umumiy muddati bu holatda
+    // bloklamasligi kerak, aks holda "ruxsat berish" amalda ishlamay qolar edi.
+    this.ensureTestCanBeSubmitted(test, { isRetry: (existingResult?.attempt ?? 1) > 1 });
 
     if (existingResult?.submittedAt) {
       throw new ForbiddenException(
@@ -1222,7 +1437,47 @@ Talablar:
       }
     }
 
-    const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+    // Masalalar (coding problems) — agar testga biriktirilgan bo'lsa, ular ham umumiy
+    // ballga qo'shiladi. Har bir savol va har bir masala bittadan "birlik" sifatida
+    // hisoblanadi (masala uchun AI bergan ball 0-100 -> 0-1 ulushga aylantiriladi).
+    // Aks holda avval kuzatilgan xato: nazariy savollar 100% to'g'ri bo'lsa, masalalar
+    // butunlay noto'g'ri yechilgan taqdirda ham umumiy ball 100 bo'lib chiqar edi.
+    const problems = await this.problemRepo.find({ where: { testId } });
+    let problemsScoreFraction = 0;
+    let problemsAvgScore: number | null = null;
+    let problemsCheckedCount = 0;
+
+    if (problems.length > 0 && existingResult) {
+      const submissions = await this.submissionRepo.find({
+        where: {
+          testResultId: existingResult.id,
+          studentId: student.id,
+          status: CodingSubmissionStatus.CHECKED,
+        },
+      });
+
+      // Bir masala bir necha marta tekshirilgan bo'lishi mumkin — eng yaxshi natija olinadi.
+      const bestByProblem = new Map<number, number>();
+      for (const s of submissions) {
+        const prev = bestByProblem.get(s.problemId);
+        const current = s.aiScore ?? 0;
+        if (prev === undefined || current > prev) bestByProblem.set(s.problemId, current);
+      }
+
+      for (const p of problems) {
+        problemsScoreFraction += (bestByProblem.get(p.id) ?? 0) / 100;
+      }
+
+      problemsCheckedCount = bestByProblem.size;
+      if (problemsCheckedCount > 0) {
+        const total = Array.from(bestByProblem.values()).reduce((a, b) => a + b, 0);
+        problemsAvgScore = Math.round(total / problemsCheckedCount);
+      }
+    }
+
+    const totalItems = totalQuestions + problems.length;
+    const correctItems = correctCount + problemsScoreFraction;
+    const score = totalItems > 0 ? Math.round((correctItems / totalItems) * 100) : 0;
     const minScore = test.minScore ?? 60;
     const passed = score >= minScore;
 
@@ -1283,6 +1538,10 @@ Talablar:
       0,
       Math.round((Date.now() - new Date(startedAt).getTime()) / 1000),
     );
+    if (problems.length > 0) {
+      result.problemsScore = problemsAvgScore;
+      result.problemsChecked = problemsCheckedCount >= problems.length;
+    }
 
     await this.resultRepo.save(result);
     void this.gamificationService.awardForTest(student.id, result.id, score, result.attempt);
@@ -1320,5 +1579,256 @@ Talablar:
       attempt: result.attempt,
       message: "Test muvaffaqiyatli topshirildi. Natijalar o'quvchi va ota-onaga yuborildi.",
     });
+  }
+
+  // ==================== CODING PROBLEMS (masalalar) ====================
+
+  // O'quvchi uchun: testga biriktirilgan masalalar ro'yxati (referenceSolution yashiriladi)
+  async getTestProblems(testId: number, currentUser: any): Promise<ISucces> {
+    const problems = await this.problemRepo.find({
+      where: { testId },
+      order: { id: 'ASC' },
+    });
+
+    if (currentUser?.role === UserRole.STUDENT) {
+      const sanitized = problems.map(({ referenceSolution, ...rest }) => rest);
+      return succesRes(sanitized);
+    }
+
+    return succesRes(problems);
+  }
+
+  private buildProblemCheckPrompt(
+    difficulty: ProblemDifficulty,
+    problem: CodingProblem,
+    code: string,
+    language: string,
+  ): string {
+    const depthInstruction: Record<ProblemDifficulty, string> = {
+      [ProblemDifficulty.SIMPLE]:
+        "SODDA TEKSHIRISH: faqat kod berilgan masalani to'g'ri yechadimi-yo'qmi (natija to'g'riligi) tekshir. Batafsil tahlil qilma.",
+      [ProblemDifficulty.MEDIUM]:
+        "O'RTA TEKSHIRISH: natija to'g'riligini va asosiy edge case'larni (bo'sh kirish, chegaraviy qiymatlar) hisobga ol, kod tuzilishi haqida qisqa fikr bildir.",
+      [ProblemDifficulty.DEEP]:
+        "CHUQUR TEKSHIRISH: bir nechta test-case orqali natijani mental simulyatsiya qil, murakkablik (time/space complexity)ni bahola, kod sifati, xatoликлар va yaxshilash takliflarini keng yoz.",
+    };
+
+    return `
+Sen dasturlash o'qituvchisan va o'quvchining kodini tekshiryapsan.
+Faqat valid JSON qaytar. Markdown ishlatma.
+
+Masala sarlavhasi: ${problem.title}
+Masala sharti: ${problem.description}
+Namuna kirish: ${problem.sampleInput ?? '-'}
+Namuna chiqish: ${problem.sampleOutput ?? '-'}
+Cheklovlar: ${problem.constraints ?? '-'}
+Namunaviy to'g'ri yechim (faqat solishtirish uchun, o'quvchiga ko'rsatilmaydi): ${problem.referenceSolution ?? '-'}
+
+O'quvchi kodi (${language}):
+\`\`\`
+${code}
+\`\`\`
+
+Tekshirish darajasi: ${difficulty}
+${depthInstruction[difficulty]}
+
+JSON format:
+{
+  "score": 0-100 oralig'idagi son,
+  "verdict": "CORRECT" | "PARTIAL" | "INCORRECT",
+  "summary": "qisqa umumiy xulosa (o'zbek tilida, 1-2 gap)",
+  "strengths": ["kod ijobiy tomoni", "..."],
+  "issues": ["aniqlangan xato yoki kamchilik", "..."],
+  "complexity": "murakkablik haqida qisqa izoh (DEEP darajada to'liqroq, boshqalarida bo'sh qoldirish mumkin)"
+}
+
+Talablar:
+- Baho faqat kod mantig'iga asoslansin, sintaksis xatolar bo'lsa score kamaytirilsin.
+- Javob faqat JSON bo'lsin.
+`;
+  }
+
+  private async checkCodingSubmissionWithAI(
+    problem: CodingProblem,
+    code: string,
+    language: string,
+  ): Promise<{ score: number; feedback: Record<string, any> }> {
+    if (!envConfig.AI.GEMINI_API_KEY) {
+      throw new ForbiddenException('GEMINI_API_KEY sozlanmagan');
+    }
+
+    const prompt = this.buildProblemCheckPrompt(problem.difficulty, problem, code, language);
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${envConfig.AI.GEMINI_MODEL}:generateContent?key=${envConfig.AI.GEMINI_API_KEY}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new ForbiddenException(`AI tekshiruv xatoligi: ${errText}`);
+    }
+
+    const aiData: any = await response.json();
+    const rawText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new ForbiddenException('AI tekshiruvdan javob qaytmadi');
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (!match) throw new ForbiddenException('AI tekshiruv valid JSON qaytarmadi');
+      parsed = JSON.parse(match[0]);
+    }
+
+    const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
+
+    return {
+      score,
+      feedback: {
+        verdict: parsed.verdict ?? (score >= 80 ? 'CORRECT' : score >= 40 ? 'PARTIAL' : 'INCORRECT'),
+        summary: parsed.summary ?? '',
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+        complexity: parsed.complexity ?? '',
+      },
+    };
+  }
+
+  // O'quvchi kodni yozib yuboradi -> AI daraja bo'yicha tekshiradi -> natija saqlanadi
+  async submitCodingProblem(userId: number, dto: SubmitCodingProblemDto): Promise<ISucces> {
+    const student = await this.studentRepo.findOne({ where: { userId } });
+    if (!student) throw new NotFoundException("O'quvchi topilmadi");
+
+    const problem = await this.problemRepo.findOne({ where: { id: dto.problemId } });
+    if (!problem) throw new NotFoundException('Masala topilmadi');
+
+    if (problem.testId !== dto.testId) {
+      throw new BadRequestException('Masala ushbu testga tegishli emas');
+    }
+
+    const currentResult = await this.resultRepo.findOne({
+      where: { testId: dto.testId, studentId: student.id, isCurrent: true },
+    });
+
+    // Test allaqachon yakunlangan (submittedAt bor) bo'lsa, masala qabul qilinmaydi —
+    // aks holda umumiy ball (submitTest paytida hisoblanadi) bilan mos kelmay qolgan
+    // "kechroq tekshirilgan" masalalar paydo bo'lishi mumkin edi.
+    if (currentResult?.submittedAt) {
+      throw new ForbiddenException(
+        'Siz bu testni allaqachon topshirgansiz — masalalarni faqat test davomida yechish mumkin.',
+      );
+    }
+
+    const submission = this.submissionRepo.create({
+      problemId: problem.id,
+      studentId: student.id,
+      testResultId: currentResult?.id,
+      code: dto.code,
+      language: dto.language ?? 'javascript',
+      status: CodingSubmissionStatus.CHECKING,
+    });
+    const saved = await this.submissionRepo.save(submission);
+
+    try {
+      const { score, feedback } = await this.checkCodingSubmissionWithAI(
+        problem,
+        dto.code,
+        dto.language ?? 'javascript',
+      );
+
+      saved.aiScore = score;
+      saved.aiFeedback = feedback;
+      saved.status = CodingSubmissionStatus.CHECKED;
+      saved.checkedAt = new Date();
+      await this.submissionRepo.save(saved);
+
+      if (currentResult) {
+        await this.recalculateProblemsScore(dto.testId, student.id, currentResult.id);
+      }
+
+      return succesRes({
+        submissionId: saved.id,
+        problemId: problem.id,
+        score,
+        feedback,
+      });
+    } catch (err) {
+      saved.status = CodingSubmissionStatus.FAILED;
+      await this.submissionRepo.save(saved);
+      throw err;
+    }
+  }
+
+  // Shu testResult (urinish) doirasida topshirilgan barcha masalalar bo'yicha o'rtacha ballni yangilaydi
+  private async recalculateProblemsScore(testId: number, studentId: number, testResultId: number) {
+    const problems = await this.problemRepo.find({ where: { testId } });
+    if (problems.length === 0) return;
+
+    const submissions = await this.submissionRepo.find({
+      where: { testResultId, studentId, status: CodingSubmissionStatus.CHECKED },
+    });
+
+    if (submissions.length === 0) return;
+
+    const total = submissions.reduce((sum, s) => sum + (s.aiScore ?? 0), 0);
+    const problemsScore = Math.round(total / submissions.length);
+    const problemsChecked = submissions.length >= problems.length;
+
+    await this.resultRepo.update(testResultId, { problemsScore, problemsChecked });
+  }
+
+  // O'quvchining shu testdagi barcha masala natijalari (o'ziga)
+  async getMyCodingResults(testId: number, userId: number): Promise<ISucces> {
+    const student = await this.studentRepo.findOne({ where: { userId } });
+    if (!student) throw new NotFoundException("O'quvchi topilmadi");
+
+    const currentResult = await this.resultRepo.findOne({
+      where: { testId, studentId: student.id, isCurrent: true },
+    });
+
+    const submissions = currentResult
+      ? await this.submissionRepo.find({
+          where: { studentId: student.id, testResultId: currentResult.id },
+          order: { createdAt: 'ASC' },
+        })
+      : [];
+
+    return succesRes({
+      testResultId: currentResult?.id ?? null,
+      problemsScore: currentResult?.problemsScore ?? null,
+      problemsChecked: currentResult?.problemsChecked ?? false,
+      submissions,
+    });
+  }
+
+  // Ustoz/admin: bir o'quvchining testdagi masala yechimlarini ko'rish
+  async getStudentProblemReview(testId: number, studentId: number, currentUser: any): Promise<ISucces> {
+    if (currentUser?.role === UserRole.TEACHER) {
+      const teacherGroup = await this.testRepo.manager
+        .getRepository('groups')
+        .findOne({ where: { teacherId: currentUser.id } });
+
+      if (!teacherGroup) {
+        throw new ForbiddenException("Sizga bu ma'lumotni ko'rish ruxsat etilmagan");
+      }
+    }
+
+    const submissions = await this.submissionRepo.find({
+      where: { studentId },
+      relations: ['problem'],
+      order: { createdAt: 'ASC' },
+    });
+
+    const filtered = submissions.filter((s) => s.problem?.testId === testId);
+
+    return succesRes(filtered);
   }
 }

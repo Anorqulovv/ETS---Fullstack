@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useChildrenPayments, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard } from "@/lib/api/hooks";
+import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance } from "@/lib/api/hooks";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
@@ -63,6 +63,7 @@ function DashboardRoute() {
       return <ParentDashboard />;
     case "MANAGER":
     case "MARKETING":
+    case "HR":
       return <OperationsDashboard />;
     case "SALES":
     case "FINANCE":
@@ -625,6 +626,26 @@ function SalaryCard({
   format: (n: number) => string;
   index: number;
 }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const isLessonBased = user?.role === "TEACHER" || user?.role === "SUPPORT";
+  // /salary/my is TEACHER/SUPPORT-only on the backend — only fetch it for those roles, other
+  // dashboards (manager, finance, ...) just show the flat salary value passed in via props.
+  const { data: mySalary } = useMySalary(undefined, isLessonBased);
+  const computed = isLessonBased ? mySalary : undefined;
+
+  if (computed?.mode === "PER_LESSON") {
+    return (
+      <StatCard
+        label={t("pages.salary.myRate")}
+        value={format(computed.payableAmount)}
+        icon={Wallet}
+        trend="flat"
+        index={index}
+      />
+    );
+  }
+
   return (
     <StatCard
       label="Oylik maoshim"
@@ -642,10 +663,14 @@ function StudentDashboard() {
   const { data: paymentsData } = useMyPayments();
   const { data: pointsData } = useMyPoints();
   const { data: leaderboard } = useLeaderboard();
+  const { data: balance } = useMyBalance();
   const tests = testsData?.data ?? [];
   const payments = paymentsData ?? [];
   const paid = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + Number(p.amount), 0);
-  const unpaid = payments.filter((p) => p.status !== "PAID").reduce((s, p) => s + Number(p.amount), 0);
+  // Real qarzdorlik — kurs narxi/chegirma/to'langan oylar asosida (getBalance bilan bir xil
+  // mantiq), legacy PaymentStatus emas — chunki yangi to'lov endpointlari (pay-full/pay-monthly)
+  // har doim PAID yozuv yaratadi, shuning uchun status bo'yicha hisoblash doim 0 ko'rsatardi.
+  const unpaid = balance?.hasCoursePricing ? (balance.debtAmount ?? 0) : 0;
   const paymentChart = [
     { name: t("pages.dashboard.paidLabel"), amount: paid, fill: "var(--color-success)" },
     { name: "Qarzdorlik", amount: unpaid, fill: "var(--color-destructive)" },
@@ -794,10 +819,11 @@ function ParentDashboard() {
   const { t } = useTranslation();
   const { format } = useCurrency();
   const { data: paymentsData } = useChildrenPayments();
+  const { data: debtSummary } = useChildrenDebt();
   const payments = paymentsData ?? [];
-  const totalUnpaid = payments
-    .filter((p) => p.status !== "PAID")
-    .reduce((s, p) => s + Number(p.amount), 0);
+  // Real qarzdorlik — getChildrenDebtSummary orqali (getBalance bilan bir xil mantiq), legacy
+  // PaymentStatus emas.
+  const totalUnpaid = debtSummary?.totalDebt ?? 0;
 
   const byChild = new Map<string, number>();
   for (const p of payments) {
@@ -982,10 +1008,11 @@ function FinanceDashboard() {
             index={1}
           />
           <StatCard
-            label={t("pages.dashboard.unpaidLabel")}
-            value={summary ? summary.byStatus.UNPAID + summary.byStatus.PARTIAL : "—"}
+            label={t("pages.payments.debt")}
+            value={summary ? format(summary.totalDebt ?? 0) : "—"}
             icon={Wallet}
-            trend={summary && summary.byStatus.UNPAID + summary.byStatus.PARTIAL > 0 ? "down" : "flat"}
+            trend={summary && (summary.totalDebt ?? 0) > 0 ? "down" : "flat"}
+            delta={summary ? `${summary.studentsWithDebt ?? 0} o'quvchida` : undefined}
             index={2}
           />
           <SalaryCard salary={user?.salary} format={format} index={3} />

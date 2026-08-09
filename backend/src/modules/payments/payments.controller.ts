@@ -152,6 +152,14 @@ export class PaymentsController {
     return this.paymentsService.findChildrenPayments(req.user.id);
   }
 
+  // Ota-ona — farzandlari bo'yicha real qarzdorlik (kurs narxi/chegirma asosida)
+  @Get('children-debt')
+  @AccessRoles(UserRole.PARENT)
+  @ApiOperation({ summary: "Farzandlar bo'yicha qarzdorlik — ota-ona uchun" })
+  getChildrenDebt(@Req() req: any) {
+    return this.paymentsService.getChildrenDebtSummary(req.user.id);
+  }
+
   @Get(':id')
   @AccessRoles(
     UserRole.SUPERADMIN,

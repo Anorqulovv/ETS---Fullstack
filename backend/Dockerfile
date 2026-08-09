@@ -1,17 +1,26 @@
-FROM node:22.12-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm ci --only=production=false
 
 COPY . .
 
-ENV NITRO_PRESET=node-server
-
 RUN npm run build
 
-EXPOSE 3000
+# Production stage
+FROM node:20-alpine
 
-CMD ["node",".output/server/index.mjs"]
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm ci --only=production && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 7001
+
+CMD ["node", "dist/main"]

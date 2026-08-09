@@ -3,6 +3,7 @@ import { IsString, IsNotEmpty, IsEnum, IsNumber, IsOptional, IsArray, ValidateNe
 import { Type } from 'class-transformer';
 import { TestType } from 'src/common/enums/test.enum';
 import { TestStatus } from 'src/common/enums/testStatus.enum';
+import { CreateCodingProblemDto } from './create-coding-problem.dto';
 
 class CreateChoiceDto {
   @IsString()
@@ -91,4 +92,22 @@ export class CreateTestDto {
   @ValidateNested({ each: true })
   @Type(() => CreateQuestionDto)
   questions?: CreateQuestionDto[];
+
+  @ApiPropertyOptional({ description: "Ustoz belgilagan masalalar soni (ixtiyoriy)", example: 5 })
+  @IsNumber()
+  @IsOptional()
+  problemCount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Masalalar darajalar taqsimoti, masalan {"SIMPLE":2,"MEDIUM":2,"DEEP":1}',
+  })
+  @IsOptional()
+  problemDifficultyMix?: Record<string, number>;
+
+  @ApiPropertyOptional({ description: 'Testga biriktirilgan masalalar (AI generatsiyasidan yoki qo\'lda)' })
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateCodingProblemDto)
+  problems?: CreateCodingProblemDto[];
 }

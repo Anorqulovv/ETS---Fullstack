@@ -11,6 +11,7 @@ export const ROLES = [
   "MARKETING",
   "SALES",
   "FINANCE",
+  "HR",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -33,8 +34,10 @@ export type NavKey =
   | "marketing"
   | "sales"
   | "finance"
+  | "hr"
   | "permissions"
   | "gamification"
+  | "salary"
   | "activity"
   | "settings"
   | "profile";
@@ -57,8 +60,10 @@ const ALL_KEYS: NavKey[] = [
   "marketing",
   "sales",
   "finance",
+  "hr",
   "permissions",
   "gamification",
+  "salary",
   "activity",
   "settings",
   "profile",
@@ -109,6 +114,18 @@ export const ROLE_NAV: Record<Role, NavKey[]> = {
   SALES: ["dashboard", "students", "payments", "notifications", "profile"],
   // Pure financial view.
   FINANCE: ["dashboard", "payments", "notifications", "profile"],
+  // Personnel management: teacher/support/staff roster visibility, no attendance grading or
+  // finances — mirrors what's granted on the backend (teacher/support/student/group/direction
+  // findAll now include HR, see teacher.controller.ts etc).
+  HR: [
+    "dashboard",
+    "teachers",
+    "supportTeachers",
+    "students",
+    "groups",
+    "notifications",
+    "profile",
+  ],
 };
 
 // Which roles are allowed to create/edit/delete records on a given nav
@@ -150,6 +167,7 @@ const DELETE_ROLES_BY_NAV: Partial<Record<NavKey, Role[]>> = {
   marketing: ["SUPERADMIN"],
   sales: ["SUPERADMIN"],
   finance: ["SUPERADMIN"],
+  hr: ["SUPERADMIN"],
 };
 
 export function canMutate(role: Role, navKey: NavKey): boolean {

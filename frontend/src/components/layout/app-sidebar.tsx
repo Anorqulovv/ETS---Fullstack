@@ -24,6 +24,8 @@ import {
   ShieldCheck,
   Trophy,
   Activity,
+  Wallet,
+  IdCard,
 } from "lucide-react";
 
 import {
@@ -66,11 +68,13 @@ const ALL_ITEMS: NavItem[] = [
   { key: "payments", to: "/payments", icon: CreditCard, group: "operations" },
   { key: "notifications", to: "/notifications", icon: Bell, group: "operations" },
   { key: "gamification", to: "/gamification", icon: Trophy, group: "operations" },
+  { key: "salary", to: "/salary", icon: Wallet, group: "operations" },
   { key: "users", to: "/users", icon: Users2, group: "system" },
   { key: "managers", to: "/managers", icon: Briefcase, group: "people" },
   { key: "marketing", to: "/marketing", icon: Megaphone, group: "people" },
   { key: "sales", to: "/sales", icon: Handshake, group: "people" },
   { key: "finance", to: "/finance", icon: Landmark, group: "people" },
+  { key: "hr", to: "/hr", icon: IdCard, group: "people" },
   { key: "permissions", to: "/permissions", icon: ShieldCheck, group: "system" },
   { key: "activity", to: "/activity", icon: Activity, group: "system" },
   { key: "settings", to: "/settings", icon: Settings, group: "system" },

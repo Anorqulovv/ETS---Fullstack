@@ -191,12 +191,9 @@ export class AuthService {
         );
       }
 
-      if (newPassword.length < 8) {
-        throw new BadRequestException(
-          "Yangi parol kamida 8 ta belgidan iborat bo'lishi kerak",
-        );
-      }
-
+      // Parol kuchliligi (katta/kichik harf, raqam, maxsus belgi) endi DTO darajasida
+      // (@IsStrongPassword, auth.controller.ts) tekshiriladi — bu yerda faqat mos
+      // kelish-kelmasligini va eski parolni tasdiqlaymiz.
       if (newPassword !== confirmPassword) {
         throw new BadRequestException(
           "Yangi parol va tasdiqlash paroli mos emas",

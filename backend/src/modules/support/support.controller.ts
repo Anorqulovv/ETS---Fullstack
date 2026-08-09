@@ -23,7 +23,7 @@ export class SupportController {
   }
 
   @Get()
-  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN,UserRole.TEACHER)
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.HR)
   @ApiOperation({ summary: 'Barcha supportlar' })
   findAll(@Query() query: any) {
     return this.supportService.findAll(query);

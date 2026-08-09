@@ -52,14 +52,21 @@ interface CurrencyContextValue {
 const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrencyState] = useState<Currency>(() => {
+  // Must start identical on server and client (see the matching comment in lib/theme.ts) — the
+  // server never has localStorage, so it always renders "UZS"; starting client state at the
+  // real saved currency would make the first client render disagree with the server's HTML for
+  // every formatted amount on the page, triggering a hydration mismatch (React error #418).
+  const [currency, setCurrencyState] = useState<Currency>("UZS");
+
+  useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      return stored === "USD" || stored === "RUB" || stored === "UZS" ? stored : "UZS";
+      if (stored === "USD" || stored === "RUB" || stored === "UZS") setCurrencyState(stored);
     } catch {
-      return "UZS";
+      // ignore storage errors (private browsing, etc.)
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     try {

@@ -125,7 +125,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: THEME_INIT_SCRIPT below intentionally mutates
+    // <html>'s class/style *before* React hydrates (to avoid a light/dark flash).
+    // That means the live DOM's <html> legitimately has attributes (class="dark",
+    // style="color-scheme:dark") that the server-rendered markup didn't — without
+    // this flag React treats that expected, intentional difference as a hydration
+    // mismatch and logs the "tree hydrated but some attributes... didn't match" warning.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* Applies the saved (or system) theme before first paint, so there's no light/dark flash. */}

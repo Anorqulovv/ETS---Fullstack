@@ -5,6 +5,7 @@ export type Theme = "light" | "dark";
 const STORAGE_KEY = "edu-crm-theme";
 
 export function getStoredTheme(): Theme | null {
+  if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw === "light" || raw === "dark" ? raw : null;
@@ -42,7 +43,18 @@ export const THEME_INIT_SCRIPT = `
 
 /** Reads/writes the current theme, keeping the `.dark` class + localStorage in sync. */
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme() ?? getSystemTheme());
+  // Must start identical on server and client — the server has no window/localStorage, so it
+  // always renders as if the theme were "light" (see getSystemTheme's SSR fallback). Starting
+  // React state at anything else here would make the very first client render (theme icon,
+  // aria-label, etc.) disagree with what the server sent, which is exactly what triggers a
+  // hydration mismatch (React error #418). The real value is applied in the effect below, which
+  // only ever runs in the browser, after hydration has already succeeded.
+  const [theme, setThemeState] = useState<Theme>("light");
+
+  useEffect(() => {
+    setThemeState(getStoredTheme() ?? getSystemTheme());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     applyTheme(theme);

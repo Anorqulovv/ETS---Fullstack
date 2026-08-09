@@ -30,7 +30,9 @@
     "finance": "Финансы",
     "permissions": "Разрешения",
     "gamification": "Геймификация",
-    "activity": "Последняя активность"
+    "activity": "Последняя активность",
+    "salary": "Зарплаты",
+    "hr": "HR"
   },
   "common": {
     "search": "Поиск",
@@ -106,7 +108,10 @@
     "thisMonth": "этот месяц",
     "notEnoughHistory": "Недостаточно истории",
     "none": "Нет",
-    "genderRequired": "Необходимо выбрать пол"
+    "genderRequired": "Необходимо выбрать пол",
+    "view": "Открыть",
+    "endsAt": "Время окончания",
+    "title": "Название"
   },
   "toast": {
     "created": "Успешно создано",
@@ -147,7 +152,12 @@
     "TEACHER": "Учитель",
     "SUPPORT": "Ассистент",
     "STUDENT": "Студент",
-    "PARENT": "Родитель"
+    "PARENT": "Родитель",
+    "MANAGER": "Менеджер",
+    "MARKETING": "Маркетинг",
+    "SALES": "Продажи",
+    "FINANCE": "Финансы",
+    "HR": "HR"
   },
   "status": {
     "active": "Активен",
@@ -191,7 +201,12 @@
       "cancelReasonPlaceholder": "Например: праздник Навруз",
       "cancelHint": "После отмены дата окончания курса автоматически сдвинется на одно занятие.",
       "noCancelled": "Пока нет отменённых занятий",
-      "autoEndDateHint": "{{direction}} — рассчитывается автоматически по курсу на {{months}} мес."
+      "autoEndDateHint": "{{direction}} — рассчитывается автоматически по курсу на {{months}} мес.",
+      "calendar": "Календарь",
+      "lessonHeld": "Проведён",
+      "lessonCancelled": "Отменён",
+      "lessonPending": "Ожидается",
+      "calendarTitle": "Календарь занятий"
     },
     "teachers": {
       "title": "Учителя",
@@ -410,6 +425,28 @@
       "subtitle": "Выдача пользователям дополнительных прав сверх их основной роли",
       "primaryRole": "Основная роль",
       "grantedRoles": "Дополнительные права"
+    },
+    "salary": {
+      "title": "Зарплаты",
+      "subtitle": "Зарплата, рассчитанная по дням/часам занятий",
+      "settingsTitle": "Стандартная цена за 1 занятие",
+      "teacherRate": "Учитель (сум/занятие)",
+      "supportRate": "Ассистент (сум/занятие)",
+      "employee": "Сотрудник",
+      "role": "Роль",
+      "lessonsThisMonth": "Занятий в этом месяце",
+      "rate": "Ставка",
+      "mode": "Режим",
+      "modeFixed": "Фиксированный",
+      "modePerLesson": "По занятиям",
+      "payable": "К оплате",
+      "customRate": "Своя ставка",
+      "monthlySalaryFixed": "Фиксированная зарплата",
+      "myLessonsThisMonth": "Ваши занятия в этом месяце",
+      "myRate": "Ставка за занятие"
+    },
+    "hr": {
+      "description": "Сотрудники отдела кадров"
     }
   },
   "notFound": {

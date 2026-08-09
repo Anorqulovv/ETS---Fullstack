@@ -23,7 +23,7 @@ interface FormDialogProps {
   loading?: boolean;
   disabled?: boolean;
   children: ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 /**
@@ -43,10 +43,19 @@ export function FormDialog({
   size = "md",
 }: FormDialogProps) {
   const { t } = useTranslation();
-  const width = size === "sm" ? "sm:max-w-sm" : size === "lg" ? "sm:max-w-2xl" : "sm:max-w-lg";
+  const width =
+    size === "sm"
+      ? "sm:max-w-sm"
+      : size === "lg"
+        ? "sm:max-w-2xl"
+        : size === "xl"
+          ? "sm:max-w-4xl"
+          : "sm:max-w-lg";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${width} p-0 overflow-hidden`}>
+      <DialogContent
+        className={`${width} flex max-h-[90vh] w-[95vw] flex-col gap-0 overflow-hidden p-0`}
+      >
         <AnimatePresence>
           {open ? (
             <motion.form
@@ -59,15 +68,16 @@ export function FormDialog({
                 e.preventDefault();
                 onSubmit?.();
               }}
+              className="flex min-h-0 flex-1 flex-col"
             >
-              <DialogHeader className="border-b px-6 py-4">
-                <DialogTitle className="text-base">{title}</DialogTitle>
+              <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6 sm:py-4">
+                <DialogTitle className="pr-8 text-base">{title}</DialogTitle>
                 {description ? <DialogDescription>{description}</DialogDescription> : null}
               </DialogHeader>
-              <div className="scrollbar-thin max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
                 {children}
               </div>
-              <DialogFooter className="gap-2 border-t bg-surface px-6 py-3">
+              <DialogFooter className="shrink-0 gap-2 border-t bg-surface px-4 py-3 sm:px-6">
                 <Button
                   type="button"
                   variant="ghost"

@@ -23,7 +23,7 @@ export class TeacherController {
   }
 
   @Get()
-  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.MANAGER, UserRole.MARKETING) // ← qo'shildi
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER, UserRole.SUPPORT, UserRole.MANAGER, UserRole.MARKETING, UserRole.HR) // ← qo'shildi
   @ApiOperation({ summary: 'Barcha teacherlar (name, directionId filter)' })
   @ApiQuery({ name: 'name', required: false })
   @ApiQuery({ name: 'directionId', required: false })

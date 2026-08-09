@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsStrongPassword } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
@@ -65,6 +65,15 @@ class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'NewPassword123!' })
   @IsOptional()
   @IsString()
+  // Kamida 8 belgi, kamida 1 kichik harf, 1 katta harf, 1 raqam va 1 maxsus belgi
+  // (masalan !@#$%) talab qilinadi. Bo'sh/oddiy parollarga to'sqinlik qiladi.
+  @IsStrongPassword(
+    { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
+    {
+      message:
+        "Yangi parol kuchli bo'lishi kerak: kamida 8 belgi, katta va kichik harf, raqam hamda maxsus belgi (masalan !, @, #) bo'lishi shart",
+    },
+  )
   newPassword?: string;
 
   @ApiPropertyOptional({ example: 'NewPassword123!' })

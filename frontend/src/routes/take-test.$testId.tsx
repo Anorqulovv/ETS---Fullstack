@@ -1,14 +1,36 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, CheckCircle2, Clock, Loader2, ShieldAlert, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  Braces,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  ShieldAlert,
+  XCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { readStoredToken, readStoredUser } from "@/lib/auth-storage";
-import { useMarkViolation, useStartTest, useSubmitTest, useTest } from "@/lib/api/hooks";
-import type { StartTestResponse, SubmitTestResponse } from "@/lib/api/types";
+import {
+  useMarkViolation,
+  useStartTest,
+  useSubmitCodingProblem,
+  useSubmitTest,
+  useTest,
+  useTestProblems,
+} from "@/lib/api/hooks";
+import type {
+  CodingProblem,
+  CodingSubmissionFeedback,
+  StartTestResponse,
+  SubmitTestResponse,
+} from "@/lib/api/types";
 
 export const Route = createFileRoute("/take-test/$testId")({
   head: () => ({ meta: [{ title: "Test — Edu CRM" }] }),
@@ -64,10 +86,15 @@ function TakeTestPage() {
   const violationMutation = useMarkViolation();
 
   const [phase, setPhase] = useState<Phase>("intro");
+  const [startError, setStartError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [result, setResult] = useState<SubmitTestResponse | null>(null);
   const [violationReason, setViolationReason] = useState<string | null>(null);
+
+  // Masalalar (coding problems) — ixtiyoriy, faqat ustoz belgilagan bo'lsa yuklanadi.
+  const { data: problems } = useTestProblems(phase === "active" ? testIdNum : undefined);
+  const hasProblems = (problems?.length ?? 0) > 0;
 
   // Guards against double-firing (e.g. blur + visibilitychange both fire for one tab switch).
   const lockedRef = useRef(false);
@@ -190,7 +217,14 @@ function TakeTestPage() {
       onSuccess: (res: StartTestResponse) => {
         const totalSeconds = res.durationMinutes ? res.durationMinutes * 60 : null;
         if (totalSeconds != null && res.startedAt) {
-          const elapsed = Math.floor((Date.now() - new Date(res.startedAt).getTime()) / 1000);
+          // Elapsed vaqtni HAR IKKALA tomonni ham serverdan olingan vaqt bilan hisoblaymiz
+          // (startedAt va serverNow — ikkalasi ham backend clock'i). Agar bu yerda
+          // `Date.now()` (klient kompyuteri vaqti) ishlatilsa, kompyuter/telefon vaqti
+          // noto'g'ri sozlangan foydalanuvchilarda test boshlanishi bilanoq "vaqt tugadi"
+          // deb avtomatik topshirilib ketishi yoki aksincha noto'g'ri ko'p vaqt qolgandek
+          // ko'rsatishi mumkin edi.
+          const referenceNow = res.serverNow ? new Date(res.serverNow).getTime() : Date.now();
+          const elapsed = Math.floor((referenceNow - new Date(res.startedAt).getTime()) / 1000);
           setRemainingSeconds(Math.max(0, totalSeconds - elapsed));
         } else {
           setRemainingSeconds(totalSeconds);
@@ -204,7 +238,14 @@ function TakeTestPage() {
           el.requestFullscreen().catch(() => {});
         }
       },
-      onError: () => setPhase("error"),
+      onError: (error: unknown) => {
+        const message =
+          error && typeof error === "object" && "response" in error
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+            : undefined;
+        setStartError(message ?? null);
+        setPhase("error");
+      },
     });
   };
 
@@ -271,6 +312,26 @@ function TakeTestPage() {
             ))}
           </div>
 
+          {hasProblems ? (
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-2 border-t pt-6">
+                <Braces className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold">Masalalar</h2>
+                <span className="text-xs text-muted-foreground">
+                  ({problems?.length} ta, ixtiyoriy — istasangiz yechib ko'ring)
+                </span>
+              </div>
+              {(problems ?? []).map((problem, pIdx) => (
+                <CodingProblemCard
+                  key={problem.id ?? pIdx}
+                  index={pIdx + 1}
+                  problem={problem}
+                  testId={testIdNum}
+                />
+              ))}
+            </div>
+          ) : null}
+
           <div className="sticky bottom-0 mt-6 flex justify-end gap-2 border-t bg-background/95 py-4 backdrop-blur">
             <Button onClick={doSubmit} disabled={submitMutation.isPending} size="lg">
               {submitMutation.isPending ? (
@@ -315,7 +376,7 @@ function TakeTestPage() {
           icon={<AlertTriangle className="h-10 w-10 text-destructive" />}
           tone="destructive"
           title={t("pages.takeTest.errorTitle")}
-          message={t("pages.takeTest.errorMessage")}
+          message={startError ?? t("pages.takeTest.errorMessage")}
           onExit={() => void navigate({ to: "/tests" })}
         />
       ) : null}
@@ -419,6 +480,180 @@ function ResultScreen({
           Testlar ro'yxatiga qaytish
         </Button>
       </div>
+    </div>
+  );
+}
+
+const DIFFICULTY_META: Record<
+  string,
+  { label: string; className: string }
+> = {
+  SIMPLE: { label: "Sodda", className: "bg-success/10 text-success" },
+  MEDIUM: { label: "O'rta", className: "bg-amber-500/10 text-amber-600" },
+  DEEP: { label: "Chuqur", className: "bg-destructive/10 text-destructive" },
+};
+
+const LANGUAGE_OPTIONS = [
+  { value: "javascript", label: "JavaScript" },
+  { value: "python", label: "Python" },
+  { value: "java", label: "Java" },
+  { value: "cpp", label: "C++" },
+  { value: "csharp", label: "C#" },
+];
+
+function VerdictBadge({ verdict }: { verdict: string }) {
+  const map: Record<string, { label: string; className: string }> = {
+    CORRECT: { label: "To'g'ri", className: "bg-success/10 text-success" },
+    PARTIAL: { label: "Qisman to'g'ri", className: "bg-amber-500/10 text-amber-600" },
+    INCORRECT: { label: "Noto'g'ri", className: "bg-destructive/10 text-destructive" },
+  };
+  const meta = map[verdict] ?? { label: verdict, className: "bg-muted text-muted-foreground" };
+  return <Badge className={meta.className}>{meta.label}</Badge>;
+}
+
+function CodingProblemCard({
+  index,
+  problem,
+  testId,
+}: {
+  index: number;
+  problem: CodingProblem;
+  testId: number;
+}) {
+  const [code, setCode] = useState(problem.starterCode ?? "");
+  const [language, setLanguage] = useState("javascript");
+  const [feedback, setFeedback] = useState<CodingSubmissionFeedback | null>(null);
+  const [score, setScore] = useState<number | null>(null);
+  const submitMutation = useSubmitCodingProblem();
+
+  const difficultyMeta = DIFFICULTY_META[problem.difficulty] ?? {
+    label: problem.difficulty,
+    className: "bg-muted text-muted-foreground",
+  };
+
+  const handleCheck = () => {
+    if (!problem.id || !code.trim()) return;
+    submitMutation.mutate(
+      { problemId: problem.id, testId, code, language },
+      {
+        onSuccess: (res) => {
+          setFeedback(res.feedback);
+          setScore(res.score);
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-4 shadow-soft">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="font-medium">
+          {index}-masala: {problem.title}
+        </p>
+        <Badge className={difficultyMeta.className}>{difficultyMeta.label}</Badge>
+      </div>
+
+      <p className="whitespace-pre-line text-sm text-muted-foreground">{problem.description}</p>
+
+      {problem.sampleInput || problem.sampleOutput ? (
+        <div className="mt-3 grid gap-2 rounded-md bg-muted/50 p-3 text-xs sm:grid-cols-2">
+          {problem.sampleInput ? (
+            <div>
+              <p className="mb-1 font-medium text-muted-foreground">Namuna kirish</p>
+              <pre className="whitespace-pre-wrap">{problem.sampleInput}</pre>
+            </div>
+          ) : null}
+          {problem.sampleOutput ? (
+            <div>
+              <p className="mb-1 font-medium text-muted-foreground">Namuna chiqish</p>
+              <pre className="whitespace-pre-wrap">{problem.sampleOutput}</pre>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {problem.constraints ? (
+        <p className="mt-2 text-xs text-muted-foreground">Cheklovlar: {problem.constraints}</p>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Label className="text-xs text-muted-foreground">Til:</Label>
+        {LANGUAGE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setLanguage(opt.value)}
+            className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+              language === opt.value
+                ? "border-primary bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <Textarea
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Yechimingizni shu yerga yozing..."
+        className="mt-2 min-h-[160px] font-mono text-sm"
+        spellCheck={false}
+      />
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleCheck}
+          disabled={submitMutation.isPending || !code.trim()}
+        >
+          {submitMutation.isPending ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Braces className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          AI bilan tekshirish
+        </Button>
+        {score != null ? (
+          <span className="text-sm font-semibold">
+            Ball: <span className="text-primary">{score}</span>/100
+          </span>
+        ) : null}
+      </div>
+
+      {feedback ? (
+        <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
+          <div className="flex items-center gap-2">
+            <VerdictBadge verdict={feedback.verdict} />
+          </div>
+          {feedback.summary ? <p>{feedback.summary}</p> : null}
+          {feedback.strengths?.length ? (
+            <div>
+              <p className="text-xs font-medium text-success">Ijobiy tomonlari:</p>
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
+                {feedback.strengths.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {feedback.issues?.length ? (
+            <div>
+              <p className="text-xs font-medium text-destructive">Kamchiliklar:</p>
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
+                {feedback.issues.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {feedback.complexity ? (
+            <p className="text-xs text-muted-foreground">Murakkablik: {feedback.complexity}</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

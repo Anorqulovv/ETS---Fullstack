@@ -81,6 +81,9 @@ function ParentsPage() {
               value={row?.password ?? ""}
               onChange={(e) => onChange({ password: e.target.value })}
             />
+            <p className="text-[11px] text-muted-foreground">
+              Kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)
+            </p>
           </div>
           <div className="grid gap-1.5">
             <Label>{t("common.telegramId")}</Label>

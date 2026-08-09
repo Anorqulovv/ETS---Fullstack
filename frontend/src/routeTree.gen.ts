@@ -21,6 +21,7 @@ import { Route as AppSupportTeachersRouteImport } from './routes/_app.support-te
 import { Route as AppStudentsRouteImport } from './routes/_app.students'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSalesRouteImport } from './routes/_app.sales'
+import { Route as AppSalaryRouteImport } from './routes/_app.salary'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppPermissionsRouteImport } from './routes/_app.permissions'
 import { Route as AppPaymentsRouteImport } from './routes/_app.payments'
@@ -28,6 +29,7 @@ import { Route as AppParentsRouteImport } from './routes/_app.parents'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
 import { Route as AppManagersRouteImport } from './routes/_app.managers'
+import { Route as AppHrRouteImport } from './routes/_app.hr'
 import { Route as AppGroupsRouteImport } from './routes/_app.groups'
 import { Route as AppGamificationRouteImport } from './routes/_app.gamification'
 import { Route as AppFinanceRouteImport } from './routes/_app.finance'
@@ -36,6 +38,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBranchesRouteImport } from './routes/_app.branches'
 import { Route as AppAttendanceRouteImport } from './routes/_app.attendance'
 import { Route as AppActivityRouteImport } from './routes/_app.activity'
+import { Route as AppStudentsStudentIdRouteImport } from './routes/_app.students.$studentId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -96,6 +99,11 @@ const AppSalesRoute = AppSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalaryRoute = AppSalaryRouteImport.update({
+  id: '/salary',
+  path: '/salary',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -129,6 +137,11 @@ const AppMarketingRoute = AppMarketingRouteImport.update({
 const AppManagersRoute = AppManagersRouteImport.update({
   id: '/managers',
   path: '/managers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHrRoute = AppHrRouteImport.update({
+  id: '/hr',
+  path: '/hr',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGroupsRoute = AppGroupsRouteImport.update({
@@ -171,6 +184,11 @@ const AppActivityRoute = AppActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
+  id: '/$studentId',
+  path: '/$studentId',
+  getParentRoute: () => AppStudentsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -184,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/finance': typeof AppFinanceRoute
   '/gamification': typeof AppGamificationRoute
   '/groups': typeof AppGroupsRoute
+  '/hr': typeof AppHrRoute
   '/managers': typeof AppManagersRoute
   '/marketing': typeof AppMarketingRoute
   '/notifications': typeof AppNotificationsRoute
@@ -191,14 +210,16 @@ export interface FileRoutesByFullPath {
   '/payments': typeof AppPaymentsRoute
   '/permissions': typeof AppPermissionsRoute
   '/profile': typeof AppProfileRoute
+  '/salary': typeof AppSalaryRoute
   '/sales': typeof AppSalesRoute
   '/settings': typeof AppSettingsRoute
-  '/students': typeof AppStudentsRoute
+  '/students': typeof AppStudentsRouteWithChildren
   '/support-teachers': typeof AppSupportTeachersRoute
   '/teachers': typeof AppTeachersRoute
   '/tests': typeof AppTestsRoute
   '/users': typeof AppUsersRoute
   '/take-test/$testId': typeof TakeTestTestIdRoute
+  '/students/$studentId': typeof AppStudentsStudentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -212,6 +233,7 @@ export interface FileRoutesByTo {
   '/finance': typeof AppFinanceRoute
   '/gamification': typeof AppGamificationRoute
   '/groups': typeof AppGroupsRoute
+  '/hr': typeof AppHrRoute
   '/managers': typeof AppManagersRoute
   '/marketing': typeof AppMarketingRoute
   '/notifications': typeof AppNotificationsRoute
@@ -219,14 +241,16 @@ export interface FileRoutesByTo {
   '/payments': typeof AppPaymentsRoute
   '/permissions': typeof AppPermissionsRoute
   '/profile': typeof AppProfileRoute
+  '/salary': typeof AppSalaryRoute
   '/sales': typeof AppSalesRoute
   '/settings': typeof AppSettingsRoute
-  '/students': typeof AppStudentsRoute
+  '/students': typeof AppStudentsRouteWithChildren
   '/support-teachers': typeof AppSupportTeachersRoute
   '/teachers': typeof AppTeachersRoute
   '/tests': typeof AppTestsRoute
   '/users': typeof AppUsersRoute
   '/take-test/$testId': typeof TakeTestTestIdRoute
+  '/students/$studentId': typeof AppStudentsStudentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -242,6 +266,7 @@ export interface FileRoutesById {
   '/_app/finance': typeof AppFinanceRoute
   '/_app/gamification': typeof AppGamificationRoute
   '/_app/groups': typeof AppGroupsRoute
+  '/_app/hr': typeof AppHrRoute
   '/_app/managers': typeof AppManagersRoute
   '/_app/marketing': typeof AppMarketingRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -249,14 +274,16 @@ export interface FileRoutesById {
   '/_app/payments': typeof AppPaymentsRoute
   '/_app/permissions': typeof AppPermissionsRoute
   '/_app/profile': typeof AppProfileRoute
+  '/_app/salary': typeof AppSalaryRoute
   '/_app/sales': typeof AppSalesRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/students': typeof AppStudentsRoute
+  '/_app/students': typeof AppStudentsRouteWithChildren
   '/_app/support-teachers': typeof AppSupportTeachersRoute
   '/_app/teachers': typeof AppTeachersRoute
   '/_app/tests': typeof AppTestsRoute
   '/_app/users': typeof AppUsersRoute
   '/take-test/$testId': typeof TakeTestTestIdRoute
+  '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -272,6 +299,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/gamification'
     | '/groups'
+    | '/hr'
     | '/managers'
     | '/marketing'
     | '/notifications'
@@ -279,6 +307,7 @@ export interface FileRouteTypes {
     | '/payments'
     | '/permissions'
     | '/profile'
+    | '/salary'
     | '/sales'
     | '/settings'
     | '/students'
@@ -287,6 +316,7 @@ export interface FileRouteTypes {
     | '/tests'
     | '/users'
     | '/take-test/$testId'
+    | '/students/$studentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -300,6 +330,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/gamification'
     | '/groups'
+    | '/hr'
     | '/managers'
     | '/marketing'
     | '/notifications'
@@ -307,6 +338,7 @@ export interface FileRouteTypes {
     | '/payments'
     | '/permissions'
     | '/profile'
+    | '/salary'
     | '/sales'
     | '/settings'
     | '/students'
@@ -315,6 +347,7 @@ export interface FileRouteTypes {
     | '/tests'
     | '/users'
     | '/take-test/$testId'
+    | '/students/$studentId'
   id:
     | '__root__'
     | '/'
@@ -329,6 +362,7 @@ export interface FileRouteTypes {
     | '/_app/finance'
     | '/_app/gamification'
     | '/_app/groups'
+    | '/_app/hr'
     | '/_app/managers'
     | '/_app/marketing'
     | '/_app/notifications'
@@ -336,6 +370,7 @@ export interface FileRouteTypes {
     | '/_app/payments'
     | '/_app/permissions'
     | '/_app/profile'
+    | '/_app/salary'
     | '/_app/sales'
     | '/_app/settings'
     | '/_app/students'
@@ -344,6 +379,7 @@ export interface FileRouteTypes {
     | '/_app/tests'
     | '/_app/users'
     | '/take-test/$testId'
+    | '/_app/students/$studentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -440,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/salary': {
+      id: '/_app/salary'
+      path: '/salary'
+      fullPath: '/salary'
+      preLoaderRoute: typeof AppSalaryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/profile': {
       id: '/_app/profile'
       path: '/profile'
@@ -487,6 +530,13 @@ declare module '@tanstack/react-router' {
       path: '/managers'
       fullPath: '/managers'
       preLoaderRoute: typeof AppManagersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/hr': {
+      id: '/_app/hr'
+      path: '/hr'
+      fullPath: '/hr'
+      preLoaderRoute: typeof AppHrRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/groups': {
@@ -545,8 +595,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/students/$studentId': {
+      id: '/_app/students/$studentId'
+      path: '/$studentId'
+      fullPath: '/students/$studentId'
+      preLoaderRoute: typeof AppStudentsStudentIdRouteImport
+      parentRoute: typeof AppStudentsRoute
+    }
   }
 }
+
+interface AppStudentsRouteChildren {
+  AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
+}
+
+const AppStudentsRouteChildren: AppStudentsRouteChildren = {
+  AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
+}
+
+const AppStudentsRouteWithChildren = AppStudentsRoute._addFileChildren(
+  AppStudentsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
@@ -557,6 +626,7 @@ interface AppRouteChildren {
   AppFinanceRoute: typeof AppFinanceRoute
   AppGamificationRoute: typeof AppGamificationRoute
   AppGroupsRoute: typeof AppGroupsRoute
+  AppHrRoute: typeof AppHrRoute
   AppManagersRoute: typeof AppManagersRoute
   AppMarketingRoute: typeof AppMarketingRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -564,9 +634,10 @@ interface AppRouteChildren {
   AppPaymentsRoute: typeof AppPaymentsRoute
   AppPermissionsRoute: typeof AppPermissionsRoute
   AppProfileRoute: typeof AppProfileRoute
+  AppSalaryRoute: typeof AppSalaryRoute
   AppSalesRoute: typeof AppSalesRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppStudentsRoute: typeof AppStudentsRoute
+  AppStudentsRoute: typeof AppStudentsRouteWithChildren
   AppSupportTeachersRoute: typeof AppSupportTeachersRoute
   AppTeachersRoute: typeof AppTeachersRoute
   AppTestsRoute: typeof AppTestsRoute
@@ -582,6 +653,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanceRoute: AppFinanceRoute,
   AppGamificationRoute: AppGamificationRoute,
   AppGroupsRoute: AppGroupsRoute,
+  AppHrRoute: AppHrRoute,
   AppManagersRoute: AppManagersRoute,
   AppMarketingRoute: AppMarketingRoute,
   AppNotificationsRoute: AppNotificationsRoute,
@@ -589,9 +661,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppPaymentsRoute: AppPaymentsRoute,
   AppPermissionsRoute: AppPermissionsRoute,
   AppProfileRoute: AppProfileRoute,
+  AppSalaryRoute: AppSalaryRoute,
   AppSalesRoute: AppSalesRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppStudentsRoute: AppStudentsRoute,
+  AppStudentsRoute: AppStudentsRouteWithChildren,
   AppSupportTeachersRoute: AppSupportTeachersRoute,
   AppTeachersRoute: AppTeachersRoute,
   AppTestsRoute: AppTestsRoute,

@@ -7,6 +7,7 @@ import { TestStatus } from 'src/common/enums/testStatus.enum';
 import { Direction } from './direction.entity';
 import { Group } from './group.entity';
 import { User } from './user.entity';
+import { CodingProblem } from './coding-problem.entity';
 
 @Entity()
 export class Test {
@@ -71,11 +72,24 @@ export class Test {
   @Column({ default: false })
   isDeleted: boolean;
 
+  // Ustoz masala (coding problem) qo'shishni xohlasa, nechta masala bo'lishini belgilaydi.
+  // Ixtiyoriy — bo'sh yoki 0 bo'lsa, testda masala bo'lmaydi.
+  @Column({ nullable: true, default: 0 })
+  problemCount?: number;
+
+  // Masalalar darajalar bo'yicha taqsimoti, masalan: { "SIMPLE": 2, "MEDIUM": 2, "DEEP": 1 }
+  // Berilmasa, AI o'zi problemCount asosida oqilona taqsimlaydi.
+  @Column({ type: 'jsonb', nullable: true })
+  problemDifficultyMix?: Record<string, number>;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @OneToMany(() => Question, (question) => question.test, { cascade: true })
   questions: Question[];
+
+  @OneToMany(() => CodingProblem, (problem) => problem.test, { cascade: true })
+  problems: CodingProblem[];
 
   @OneToMany(() => TestResult, (result) => result.test)
   results: TestResult[];
