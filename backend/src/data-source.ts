@@ -15,7 +15,7 @@ import { DataSource } from 'typeorm';
 //   npm run migration:generate -- src/migrations/InitialSchema
 //   npm run migration:run
 //   npm run migration:revert
-export const AppDataSource = new DataSource({
+const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DB_URL,
   // Diqqat: bu yerda ATAYLAB `synchronize` yo'q — CLI hech qachon bazani
