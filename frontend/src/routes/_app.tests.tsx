@@ -459,8 +459,8 @@ function TestForm({
         <Input value={row?.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="grid gap-1.5">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid min-w-0 gap-1.5">
           <Label>{t("common.type")}</Label>
           <Select value={row?.type} onValueChange={(v) => onChange({ type: v as TestType })}>
             <SelectTrigger>
@@ -475,7 +475,7 @@ function TestForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label>{t("nav.directions")}</Label>
           <Select
             value={row?.directionId ? String(row.directionId) : undefined}
@@ -483,7 +483,7 @@ function TestForm({
               onChange({ directionId: Number(v), groupId: undefined })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder={t("common.selectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
@@ -495,17 +495,17 @@ function TestForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label>{t("nav.groups")}</Label>
           <Select
             value={row?.groupId ? String(row.groupId) : undefined}
             onValueChange={(v) => onChange({ groupId: Number(v) })}
             disabled={!row?.directionId}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue
                 placeholder={
-                  row?.directionId ? t("common.selectPlaceholder") : "Avval yo'nalishni tanlang"
+                  row?.directionId ? t("common.selectPlaceholder") : "Avval tanlang"
                 }
               />
             </SelectTrigger>
@@ -522,8 +522,8 @@ function TestForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="grid gap-1.5">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-1.5">
           <Label>Min score</Label>
           <Input
             type="number"
@@ -531,7 +531,7 @@ function TestForm({
             onChange={(e) => onChange({ minScore: Number(e.target.value) })}
           />
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label>{t("common.durationMinutes")}</Label>
           <Input
             type="number"
@@ -541,18 +541,20 @@ function TestForm({
             onChange={(e) => onChange({ durationMinutes: Number(e.target.value) })}
           />
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label>{t("common.date")}</Label>
           <Input
             type="datetime-local"
+            className="w-full min-w-0"
             value={isoToLocalInput(row?.startsAt)}
             onChange={(e) => onChange({ startsAt: localInputToISO(e.target.value) })}
           />
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label>{t("common.endsAt")}</Label>
           <Input
             type="datetime-local"
+            className="w-full min-w-0"
             value={isoToLocalInput(row?.endsAt)}
             onChange={(e) => onChange({ endsAt: localInputToISO(e.target.value) })}
           />
@@ -1009,7 +1011,11 @@ function StudentTestCard({ test: listTest }: { test: Test }) {
     .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""))[0];
 
   const status: "not_started" | "in_progress" | "finished" =
-    current && !current.submittedAt ? "in_progress" : latestSubmitted ? "finished" : "not_started";
+    current && !current.submittedAt
+      ? "in_progress"
+      : current && current.submittedAt
+        ? "finished"
+        : "not_started";
 
   return (
     <Card className="shadow-soft">

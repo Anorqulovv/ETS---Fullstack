@@ -49,7 +49,7 @@ export function FormDialog({
       : size === "lg"
         ? "sm:max-w-2xl"
         : size === "xl"
-          ? "sm:max-w-4xl"
+          ? "sm:max-w-3xl"
           : "sm:max-w-lg";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,7 +74,7 @@ export function FormDialog({
                 <DialogTitle className="pr-8 text-base">{title}</DialogTitle>
                 {description ? <DialogDescription>{description}</DialogDescription> : null}
               </DialogHeader>
-              <div className="scrollbar-thin min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
                 {children}
               </div>
               <DialogFooter className="shrink-0 gap-2 border-t bg-surface px-4 py-3 sm:px-6">
