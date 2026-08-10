@@ -476,20 +476,47 @@ function TestForm({
           </Select>
         </div>
         <div className="grid gap-1.5">
-          <Label>{t("nav.groups")}</Label>
+          <Label>{t("nav.directions")}</Label>
           <Select
-            value={row?.groupId ? String(row.groupId) : undefined}
-            onValueChange={(v) => onChange({ groupId: Number(v) })}
+            value={row?.directionId ? String(row.directionId) : undefined}
+            onValueChange={(v) =>
+              onChange({ directionId: Number(v), groupId: undefined })
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder={t("common.selectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
-              {(groupsQ.useList({ limit: 200 }).data?.data ?? mockGroups).map((g) => (
-                <SelectItem key={g.id} value={String(g.id)}>
-                  {g.name}
+              {(directionsQ.useList({ limit: 200 }).data?.data ?? mockDirections).map((d) => (
+                <SelectItem key={d.id} value={String(d.id)}>
+                  {d.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>{t("nav.groups")}</Label>
+          <Select
+            value={row?.groupId ? String(row.groupId) : undefined}
+            onValueChange={(v) => onChange({ groupId: Number(v) })}
+            disabled={!row?.directionId}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  row?.directionId ? t("common.selectPlaceholder") : "Avval yo'nalishni tanlang"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {(groupsQ.useList({ limit: 200 }).data?.data ?? mockGroups)
+                .filter((g) => !row?.directionId || g.directionId === row.directionId)
+                .map((g) => (
+                  <SelectItem key={g.id} value={String(g.id)}>
+                    {g.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -799,15 +826,10 @@ function AiGenerateSection({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState("");
-  const [lessonNumber, setLessonNumber] = useState("");
   const [count, setCount] = useState("10");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [problemCount, setProblemCount] = useState("");
   const aiGenerate = useAiGenerateTest();
-  // Called unconditionally (not inside `{open ? ... : null}`) — a hook can never be called
-  // conditionally within the same component instance, or React throws "Rendered more hooks
-  // than during the previous render" the moment `open` flips to true.
-  const directions = directionsQ.useList({ limit: 200 }).data?.data ?? mockDirections;
 
   const directionId = row?.directionId;
 
@@ -819,7 +841,6 @@ function AiGenerateSection({
         groupId: row.groupId,
         type: row.type,
         topic: topic.trim(),
-        lessonNumber: lessonNumber ? Number(lessonNumber) : undefined,
         count: count ? Number(count) : undefined,
         difficulty,
         problemCount: problemCount ? Number(problemCount) : undefined,
@@ -852,29 +873,16 @@ function AiGenerateSection({
 
       {open ? (
         <div className="mt-3 space-y-3">
-          <div className="grid gap-1.5">
-            <Label>{t("nav.directions")}</Label>
-            <Select
-              value={row?.directionId ? String(row.directionId) : undefined}
-              onValueChange={(v) => onChange({ directionId: Number(v) })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("common.selectPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {directions.map((d) => (
-                  <SelectItem key={d.id} value={String(d.id)}>
-                    {d.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!row?.type ? (
-              <p className="text-[11px] text-destructive">
-                Avval yuqorida "Type" ni tanlang — AI generatsiya uchun kerak.
-              </p>
-            ) : null}
-          </div>
+          {!row?.directionId ? (
+            <p className="text-[11px] text-destructive">
+              Avval yuqorida "{t("nav.directions")}" ni tanlang — AI generatsiya uchun kerak.
+            </p>
+          ) : null}
+          {!row?.type ? (
+            <p className="text-[11px] text-destructive">
+              Avval yuqorida "Type" ni tanlang — AI generatsiya uchun kerak.
+            </p>
+          ) : null}
           <div className="grid gap-1.5">
             <Label>{t("pages.tests.subject")}</Label>
             <Input
@@ -883,17 +891,7 @@ function AiGenerateSection({
               onChange={(e) => setTopic(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="grid gap-1.5">
-              <Label>{t("pages.tests.lessonNumber")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={12}
-                value={lessonNumber}
-                onChange={(e) => setLessonNumber(e.target.value)}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Savollar soni</Label>
               <Input
