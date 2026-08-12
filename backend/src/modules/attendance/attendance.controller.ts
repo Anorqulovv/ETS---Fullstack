@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, Param, Patch, Delete, UseGuards, Req } fro
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
+import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { AccessRoles } from 'src/common/decorators/roles.decorator';
@@ -72,5 +73,21 @@ export class AttendanceController {
   @ApiOperation({ summary: "ID bo'yicha davomat" })
   findOne(@Param('id') id: number) {
     return this.attendanceService.findOne(id);
+  }
+
+  // Davomat yozuvini tahrirlash (masalan, isPresent yoki type ni tuzatish)
+  @Patch(':id')
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER)
+  @ApiOperation({ summary: "Davomat yozuvini yangilash" })
+  update(@Param('id') id: number, @Body() dto: UpdateAttendanceDto, @Req() req: any) {
+    return this.attendanceService.update(id, dto, req.user);
+  }
+
+  // Davomat yozuvini o'chirish
+  @Delete(':id')
+  @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER)
+  @ApiOperation({ summary: "Davomat yozuvini o'chirish" })
+  remove(@Param('id') id: number, @Req() req: any) {
+    return this.attendanceService.remove(id, req.user);
   }
 }

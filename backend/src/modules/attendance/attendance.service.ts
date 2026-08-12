@@ -346,6 +346,45 @@ export class AttendanceService {
     return succesRes(att);
   }
 
+  // ==================== YANGILASH ====================
+  async update(id: number, dto: UpdateAttendanceDto, reqUser: any) {
+    const att = await this.attRepo.findOne({
+      where: { id },
+      relations: ['student', 'student.group'],
+    });
+    if (!att) throw new NotFoundException(`Davomat ID ${id} topilmadi`);
+
+    if (reqUser?.role === UserRole.TEACHER) {
+      const groupTeacherId = (att.student as any)?.group?.teacherId;
+      if (groupTeacherId !== reqUser.id) {
+        throw new ForbiddenException("Siz faqat o'z guruhingiz davomatini tahrirlay olasiz");
+      }
+    }
+
+    Object.assign(att, dto);
+    await this.attRepo.save(att);
+    return succesRes(att);
+  }
+
+  // ==================== O'CHIRISH ====================
+  async remove(id: number, reqUser: any) {
+    const att = await this.attRepo.findOne({
+      where: { id },
+      relations: ['student', 'student.group'],
+    });
+    if (!att) throw new NotFoundException(`Davomat ID ${id} topilmadi`);
+
+    if (reqUser?.role === UserRole.TEACHER) {
+      const groupTeacherId = (att.student as any)?.group?.teacherId;
+      if (groupTeacherId !== reqUser.id) {
+        throw new ForbiddenException("Siz faqat o'z guruhingiz davomatini o'chira olasiz");
+      }
+    }
+
+    await this.attRepo.remove(att);
+    return succesRes({ message: "Davomat yozuvi o'chirildi" });
+  }
+
   // ==================== PRIVATE: OTA-ONAGA XABAR ====================
   private async _notifyParent(student: Student, isPresent: boolean) {
     try {
