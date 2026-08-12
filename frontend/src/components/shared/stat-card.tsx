@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -9,6 +10,8 @@ interface StatCardProps {
   trend?: "up" | "down" | "flat";
   icon?: LucideIcon;
   index?: number;
+  /** Berilsa, kartochka shu sahifaga link bo'ladi (masalan "/students"). */
+  to?: string;
 }
 
 export function StatCard({
@@ -18,13 +21,17 @@ export function StatCard({
   trend = "flat",
   icon: Icon,
   index = 0,
+  to,
 }: StatCardProps) {
-  return (
+  const content = (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
-      className="group relative overflow-hidden rounded-xl border bg-card p-5 shadow-soft transition-all hover:shadow-elevated"
+      className={
+        "group relative overflow-hidden rounded-xl border bg-card p-5 shadow-soft transition-all hover:shadow-elevated" +
+        (to ? " cursor-pointer hover:border-primary/40" : "")
+      }
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0">
@@ -53,4 +60,14 @@ export function StatCard({
       </div>
     </motion.div>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className="block">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }

@@ -95,6 +95,7 @@ function StaffDashboard() {
             trend={trendOf(stats?.enrollmentDeltaPct)}
             icon={GraduationCap}
             index={0}
+            to="/students"
           />
           <StatCard
             label={t("dashboard.stats.teachers")}
@@ -103,6 +104,7 @@ function StaffDashboard() {
             trend="flat"
             icon={UserRound}
             index={1}
+            to="/teachers"
           />
           <StatCard
             label={t("dashboard.stats.groups")}
@@ -115,6 +117,7 @@ function StaffDashboard() {
             trend="flat"
             icon={Users2}
             index={2}
+            to="/groups"
           />
           <StatCard
             label={t("dashboard.stats.revenue")}
@@ -123,6 +126,7 @@ function StaffDashboard() {
             trend={trendOf(stats?.revenueDeltaPct)}
             icon={CircleDollarSign}
             index={3}
+            to="/payments"
           />
         </div>
 
@@ -510,9 +514,9 @@ function TeacherDashboard() {
         <PageHeader title={t("nav.dashboard")} description="Sizga tayinlangan guruhlar" />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label={t("pages.dashboard.myGroups")} value={groups.length} icon={Users2} index={0} />
-          <StatCard label={t("pages.dashboard.activeGroups")} value={activeGroups} icon={ClipboardCheck} index={1} />
-          <StatCard label={t("pages.dashboard.totalStudents")} value={totalStudents} icon={GraduationCap} index={2} />
+          <StatCard label={t("pages.dashboard.myGroups")} value={groups.length} icon={Users2} index={0} to="/groups" />
+          <StatCard label={t("pages.dashboard.activeGroups")} value={activeGroups} icon={ClipboardCheck} index={1} to="/groups" />
+          <StatCard label={t("pages.dashboard.totalStudents")} value={totalStudents} icon={GraduationCap} index={2} to="/students" />
           <SalaryCard salary={user?.salary} format={format} index={3} />
         </div>
 
@@ -682,7 +686,7 @@ function StudentDashboard() {
         <PageHeader title={t("nav.dashboard")} description={t("pages.dashboard.personalStats")} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label={t("pages.dashboard.activeTests")} value={tests.length} icon={ListChecks} index={0} />
+          <StatCard label={t("pages.dashboard.activeTests")} value={tests.length} icon={ListChecks} index={0} to="/tests" />
           <StatCard
             label={t("pages.dashboard.myPoints")}
             value={pointsData?.points ?? 0}
@@ -930,8 +934,9 @@ function OperationsDashboard() {
             trend={trendOf(stats?.enrollmentDeltaPct)}
             icon={GraduationCap}
             index={0}
+            to="/students"
           />
-          <StatCard label={t("dashboard.stats.teachers")} value={stats?.teachers ?? "—"} icon={UserRound} trend="flat" index={1} />
+          <StatCard label={t("dashboard.stats.teachers")} value={stats?.teachers ?? "—"} icon={UserRound} trend="flat" index={1} to="/teachers" />
           <StatCard
             label={t("dashboard.stats.groups")}
             value={stats?.groups ?? "—"}
@@ -939,6 +944,7 @@ function OperationsDashboard() {
             trend="flat"
             icon={Users2}
             index={2}
+            to="/groups"
           />
           <SalaryCard salary={user?.salary} format={format} index={3} />
         </div>
@@ -999,6 +1005,7 @@ function FinanceDashboard() {
             trend={trendOf(stats?.revenueDeltaPct)}
             icon={CircleDollarSign}
             index={0}
+            to="/payments"
           />
           <StatCard
             label={t("pages.dashboard.paidLabel")}
@@ -1006,6 +1013,7 @@ function FinanceDashboard() {
             icon={ClipboardCheck}
             trend="up"
             index={1}
+            to="/payments"
           />
           <StatCard
             label={t("pages.payments.debt")}
@@ -1014,6 +1022,7 @@ function FinanceDashboard() {
             trend={summary && (summary.totalDebt ?? 0) > 0 ? "down" : "flat"}
             delta={summary ? `${summary.studentsWithDebt ?? 0} o'quvchida` : undefined}
             index={2}
+            to="/payments"
           />
           <SalaryCard salary={user?.salary} format={format} index={3} />
         </div>
