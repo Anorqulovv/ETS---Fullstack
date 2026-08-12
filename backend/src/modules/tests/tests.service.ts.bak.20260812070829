@@ -92,25 +92,13 @@ export class TestsService implements OnModuleInit {
       const test = result.test;
       if (!test || !result.startedAt) continue;
 
-      // Ustoz "qayta ishlashga ruxsat berish" orqali reset qilgan urinish
-      // (attempt > 1) uchun testning umumiy `endsAt`i asos bo'la olmaydi —
-      // aks holda ruxsat berilgan zahoti (keyingi 30 soniya ichida) urinish
-      // yana avtomatik "muddati tugadi" deb yopib qo'yiladi, chunki ruxsat
-      // aynan testning umumiy vaqti allaqachon tugagan holatlar uchun
-      // beriladi. Bu yerda faqat aniq belgilangan `durationMinutes`
-      // (shu urinishning o'ziga tegishli chegara) hisobga olinadi —
-      // xuddi ensureTestCanBeSubmitted'dagi `isRetry` istisnosi kabi.
-      const isRetryAttempt = (result.attempt ?? 1) > 1;
       const durationMinutes = test.durationMinutes ?? null;
       const deadline = durationMinutes
         ? new Date(new Date(result.startedAt).getTime() + durationMinutes * 60 * 1000)
-        : isRetryAttempt
-          ? null
-          : this.parseDateTime(test.endsAt);
+        : this.parseDateTime(test.endsAt);
 
-      // Muddat aniqlanmagan bo'lsa (davomiylik ham, endsAt ham yo'q, yoki
-      // bu qayta ishlashga ruxsat berilgan urinish bo'lsa), avtomatik
-      // yopish uchun asos yo'q — tegmaymiz.
+      // Muddat aniqlanmagan bo'lsa (davomiylik ham, endsAt ham yo'q),
+      // avtomatik yopish uchun asos yo'q — tegmaymiz.
       if (!deadline || deadline > now) continue;
 
       result.score = 0;

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Camera } from "lucide-react";
+import { Camera, Trash2 } from "lucide-react";
 
 import { PageMotion } from "@/components/shared/page-motion";
 import { PageHeader } from "@/components/shared/page-header";
@@ -78,6 +78,19 @@ function ProfilePage() {
     }
   }
 
+  function handleAvatarDelete() {
+    if (!user?.avatar) return;
+    updateProfile.mutate(
+      { avatar: null },
+      {
+        onSuccess: (fresh) => {
+          updateUser({ avatar: fresh?.avatar ?? null });
+          toast.success(t("toast.updated"));
+        },
+      },
+    );
+  }
+
   function handleSave() {
     if (wantsPasswordChange && newPassword !== confirmPassword) {
       toast.error(t("pages.profile.confirmPassword") + " ≠ " + t("pages.profile.newPassword"));
@@ -145,6 +158,17 @@ function ProfilePage() {
               >
                 <Camera className="h-5 w-5" />
               </button>
+              {user?.avatar ? (
+                <button
+                  type="button"
+                  onClick={handleAvatarDelete}
+                  disabled={avatarUploading || updateProfile.isPending}
+                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-opacity hover:opacity-90"
+                  aria-label={t("pages.profile.deletePhoto")}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
               <input
                 ref={fileInputRef}
                 type="file"

@@ -152,7 +152,7 @@ export class AuthService {
       fullName?: string;
       username?: string;
       phone?: string;
-      avatar?: string;
+      avatar?: string | null;
       oldPassword?: string;
       newPassword?: string;
       confirmPassword?: string;
@@ -178,7 +178,7 @@ export class AuthService {
       delete (profileData as any).phone;
     }
 
-    const updateData: Partial<User> = { ...profileData };
+    const updateData: Partial<User> = { ...profileData } as any;
 
     const wantsPasswordChange = Boolean(
       oldPassword || newPassword || confirmPassword,

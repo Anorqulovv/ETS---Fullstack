@@ -41,7 +41,7 @@ import {
   useTestReview,
   useUpdateTest,
 } from "@/lib/api/hooks";
-import type { CodingProblem, Test, TestQuestion, TestType } from "@/lib/api/types";
+import type { CodingProblem, Test, TestQuestion, TestStatus, TestType } from "@/lib/api/types";
 import { mockDirections, mockGroups } from "@/lib/api/mock-data";
 import { useAuth } from "@/lib/auth-context";
 
@@ -65,6 +65,69 @@ function emptyQuestion(): TestQuestion {
 }
 function emptyProblem(): CodingProblem {
   return { title: "", description: "", difficulty: "MEDIUM" };
+}
+
+/**
+ * Testning "Holati": Kutilmoqda (hali boshlanmagan) / Faol (hozir ishlayapti,
+ * o'quvchilarga ko'rinadi) / Tugagan (vaqti o'tgan yoki qo'lda to'xtatilgan —
+ * o'quvchilarga ko'rinmaydi). Backend `status` maydonini (NOACTIVE) va
+ * startsAt/endsAt vaqtlarini birga hisobga oladi, shunday qilib admin
+ * panelida ko'rsatilayotgan holat backend cron (syncTimedTestStatuses)
+ * hali yetib bormagan bo'lsa ham aniq bo'ladi.
+ */
+function testTimeStatus(test: Test): "pending" | "active" | "finished" {
+  if (test.status === "NOACTIVE") return "finished";
+  const now = new Date();
+  const starts = test.startsAt ? new Date(test.startsAt) : null;
+  const ends = test.endsAt ? new Date(test.endsAt) : null;
+  if (ends && now > ends) return "finished";
+  if (starts && now < starts) return "pending";
+  return "active";
+}
+
+/**
+ * "Holati" ustunidagi tanlov (Select) — admin/ustoz shu yerdan to'g'ridan-to'g'ri
+ * testni "Faol" yoki "Tugagan" qilib qo'yishi mumkin (backend PATCH /tests/:id
+ * `status` maydonini qabul qiladi). Ko'rsatiladigan matn (label) esa vaqtga
+ * qarab hisoblangan holatni aks ettiradi — masalan status=ACTIVE bo'lsa-yu,
+ * startsAt hali kelmagan bo'lsa, "Kutilmoqda" deb ko'rsatiladi.
+ *
+ * Diqqat: agar testning endsAt vaqti allaqachon o'tgan bo'lsa, backend uni
+ * "Faol" qilib bo'lmasligini o'zi ta'minlaydi (avtomatik ravishda "Tugagan"
+ * holatiga qaytaradi) — bunday holda testni qayta ochish uchun tahrirlash
+ * oynasidan endsAt vaqtini ham uzaytirish kerak bo'ladi.
+ */
+function TestStatusCell({ test }: { test: Test }) {
+  const updateTest = useUpdateTest();
+  const timeStatus = testTimeStatus(test);
+
+  const label =
+    timeStatus === "pending" ? "Kutilmoqda" : timeStatus === "finished" ? "Tugagan" : "Faol";
+  const colorClass =
+    timeStatus === "pending"
+      ? "bg-warning/15 text-warning-foreground"
+      : timeStatus === "finished"
+        ? "bg-muted text-muted-foreground"
+        : "bg-success/15 text-success";
+
+  return (
+    <Select
+      value={test.status === "NOACTIVE" ? "NOACTIVE" : "ACTIVE"}
+      onValueChange={(value: string) =>
+        updateTest.mutate({ id: test.id, payload: { status: value as TestStatus } })
+      }
+    >
+      <SelectTrigger
+        className={`h-7 w-auto min-w-[110px] gap-1 rounded-md border-none px-2 py-0.5 text-xs font-semibold shadow-none focus:ring-0 focus:ring-offset-0 ${colorClass}`}
+      >
+        {label}
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="ACTIVE">Faol</SelectItem>
+        <SelectItem value="NOACTIVE">Tugagan</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 }
 
 function TestsPage() {
@@ -105,6 +168,11 @@ function TestsPage() {
           {r.startsAt ? new Date(r.startsAt).toLocaleString() : "—"}
         </span>
       ),
+    },
+    {
+      key: "status",
+      header: "Holati",
+      cell: (r) => <TestStatusCell test={r} />,
     },
     {
       key: "results",
@@ -459,11 +527,11 @@ function TestForm({
         <Input value={row?.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} />
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
-        <div className="grid min-w-0 gap-1.5">
+      <div className="flex flex-wrap gap-2">
+        <div className="grid w-40 min-w-0 flex-1 gap-1.5">
           <Label>{t("common.type")}</Label>
           <Select value={row?.type} onValueChange={(v) => onChange({ type: v as TestType })}>
-            <SelectTrigger>
+            <SelectTrigger className="h-8 w-full min-w-0 text-sm">
               <SelectValue placeholder={t("common.selectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
@@ -475,7 +543,7 @@ function TestForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid min-w-0 gap-1.5">
+        <div className="grid w-40 min-w-0 flex-1 gap-1.5">
           <Label>{t("nav.directions")}</Label>
           <Select
             value={row?.directionId ? String(row.directionId) : undefined}
@@ -483,7 +551,7 @@ function TestForm({
               onChange({ directionId: Number(v), groupId: undefined })
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="h-8 w-full min-w-0 text-sm">
               <SelectValue placeholder={t("common.selectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
@@ -495,14 +563,14 @@ function TestForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid min-w-0 gap-1.5">
+        <div className="grid w-40 min-w-0 flex-1 gap-1.5">
           <Label>{t("nav.groups")}</Label>
           <Select
             value={row?.groupId ? String(row.groupId) : undefined}
             onValueChange={(v) => onChange({ groupId: Number(v) })}
             disabled={!row?.directionId}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="h-8 w-full min-w-0 text-sm">
               <SelectValue
                 placeholder={
                   row?.directionId ? t("common.selectPlaceholder") : "Avval tanlang"
@@ -600,10 +668,10 @@ function TestForm({
                     className={"mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (isExpanded ? "rotate-90" : "")}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
+                    <p className="break-words text-sm font-medium">
                       {qIdx + 1}. {q.text || `Savol ${qIdx + 1}`}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    <p className="mt-0.5 break-words text-xs text-muted-foreground">
                       {correctChoice?.text
                         ? `To'g'ri javob: ${correctChoice.text}`
                         : "To'g'ri javob belgilanmagan"}
@@ -717,7 +785,7 @@ function TestForm({
                     className={"mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform " + (isExpanded ? "rotate-90" : "")}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
+                    <p className="break-words text-sm font-medium">
                       {pIdx + 1}. {p.title || `Masala ${pIdx + 1}`}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">

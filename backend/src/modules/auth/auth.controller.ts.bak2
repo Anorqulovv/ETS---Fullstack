@@ -52,10 +52,10 @@ class UpdateProfileDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'https://...', nullable: true })
+  @ApiPropertyOptional({ example: 'https://...' })
   @IsOptional()
   @IsString()
-  avatar?: string | null;
+  avatar?: string;
 
   @ApiPropertyOptional({ example: 'OldPassword123!' })
   @IsOptional()

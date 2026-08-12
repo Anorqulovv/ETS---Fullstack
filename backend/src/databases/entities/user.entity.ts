@@ -83,7 +83,7 @@ export class User extends BaseEntity {
   perLessonRate: number;
 
   @Column({ nullable: true, type: 'text' })
-  avatar: string;
+  avatar: string | null;
 
   @Column({ nullable: true, type: 'timestamp' })
   lastLoginAt: Date;
