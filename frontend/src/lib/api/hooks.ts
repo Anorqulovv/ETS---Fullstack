@@ -400,7 +400,13 @@ export const paymentsQ = createCrudHooks<Payment>(
   flattenPayment,
   ["studentId", "groupId", "amount", "method", "status", "month", "paidAt", "comment"],
 );
-export const attendanceQ = createCrudHooks<AttendanceRecord>(RESOURCES.attendance, "attendance", undefined, flattenAttendance);
+export const attendanceQ = createCrudHooks<AttendanceRecord>(
+  RESOURCES.attendance,
+  "attendance",
+  undefined,
+  flattenAttendance,
+  ["studentId", "isPresent", "type"],
+);
 /**
  * CreateTestDto/UpdateTestDto's nested question/choice DTOs don't have an `id` field and the
  * global ValidationPipe uses forbidNonWhitelisted — so sending back the `id`s that GET /tests/:id
