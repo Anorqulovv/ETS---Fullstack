@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
   Area,
@@ -314,17 +314,21 @@ function StaffDashboard() {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.25, delay: i * 0.04 }}
-                    className="flex items-center justify-between rounded-md border p-2.5 transition-colors hover:bg-surface"
                   >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{g.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {g.studentsCount} students · {g.startDate}
+                    <Link
+                      to="/groups"
+                      className="flex items-center justify-between rounded-md border p-2.5 transition-colors hover:bg-surface"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{g.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {g.studentsCount} students · {g.startDate}
+                        </div>
                       </div>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0">
-                      {g.status}
-                    </Badge>
+                      <Badge variant="secondary" className="shrink-0">
+                        {g.status}
+                      </Badge>
+                    </Link>
                   </motion.li>
                 ))}
               </ul>
@@ -343,21 +347,26 @@ function StaffDashboard() {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.25, delay: i * 0.04 }}
-                    className="flex items-center gap-3"
                   >
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary/10 text-[11px] font-medium text-primary">
-                        {s.fullName
-                          ?.split(" ")
-                          ?.map((x) => x[0])
-                          .slice(0, 2)
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{s.fullName}</div>
-                      <div className="truncate text-xs text-muted-foreground">{s.cardId}</div>
-                    </div>
+                    <Link
+                      to="/students/$studentId"
+                      params={{ studentId: String(s.id) }}
+                      className="flex items-center gap-3 rounded-md p-1 -m-1 transition-colors hover:bg-surface"
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/10 text-[11px] font-medium text-primary">
+                          {s.fullName
+                            ?.split(" ")
+                            ?.map((x) => x[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{s.fullName}</div>
+                        <div className="truncate text-xs text-muted-foreground">{s.cardId}</div>
+                      </div>
+                    </Link>
                   </motion.li>
                 ))}
               </ul>
@@ -432,6 +441,7 @@ function LeaderboardCard({ groupId, title }: { groupId?: number; title?: string 
 function LatestPaymentsTable() {
   const { t } = useTranslation();
   const { format } = useCurrency();
+  const navigate = useNavigate();
   const { data, isLoading } = paymentsQ.useList({ limit: 5 });
   const rows = data?.data ?? [];
 
@@ -455,7 +465,11 @@ function LatestPaymentsTable() {
         </thead>
         <tbody>
           {rows.map((p) => (
-            <tr key={p.id} className="border-b last:border-0">
+            <tr
+              key={p.id}
+              onClick={() => navigate({ to: "/students/$studentId", params: { studentId: String(p.studentId) } })}
+              className="cursor-pointer border-b transition-colors last:border-0 hover:bg-surface"
+            >
               <td className="py-2 font-medium">{p.studentName ?? "—"}</td>
               <td className="py-2 tabular-nums">{format(p.amount)}</td>
               <td className="py-2">
@@ -556,7 +570,11 @@ function TeacherDashboard() {
               ) : (
                 <div className="max-h-64 space-y-2 overflow-y-auto">
                   {groups.map((g) => (
-                    <div key={g.id} className="flex items-center justify-between rounded-md border p-2.5 text-sm">
+                    <Link
+                      key={g.id}
+                      to="/groups"
+                      className="flex items-center justify-between rounded-md border p-2.5 text-sm transition-colors hover:bg-surface"
+                    >
                       <div>
                         <div className="font-medium">{g.name}</div>
                         <div className="text-xs text-muted-foreground">{g.studentsCount ?? 0} o'quvchi</div>
@@ -573,7 +591,7 @@ function TeacherDashboard() {
                       >
                         {g.status}
                       </Badge>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -842,13 +860,14 @@ function ParentDashboard() {
         <PageHeader title={t("nav.dashboard")} description="Farzandingiz haqida ma'lumot" />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <StatCard label={t("pages.dashboard.paymentsCount")} value={payments.length} icon={CircleDollarSign} index={0} />
+          <StatCard label={t("pages.dashboard.paymentsCount")} value={payments.length} icon={CircleDollarSign} index={0} to="/payments" />
           <StatCard
             label="Qarzdorlik"
             value={totalUnpaid > 0 ? format(totalUnpaid) : t("common.none")}
             icon={Wallet}
             trend={totalUnpaid > 0 ? "down" : "up"}
             index={1}
+            to="/payments"
           />
         </div>
 
