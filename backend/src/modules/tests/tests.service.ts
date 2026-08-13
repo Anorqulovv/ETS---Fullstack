@@ -76,6 +76,31 @@ export class TestsService implements OnModuleInit {
    * bir xil qoidada (score=0, forceScoreZero=true, violationReason=
    * "TIME_EXPIRED") yakunlangan deb belgilaymiz.
    */
+  /**
+   * Bitta test urinishi uchun "qachongacha ishlash mumkin" chegarasini hisoblaydi.
+   *
+   *  - Oddiy (birinchi) urinish: har doim testning umumiy tugash vaqti (`endsAt`)gacha
+   *    — `durationMinutes` faqat ma'lumot uchun, timerga ta'sir qilmaydi. Shunday qilib
+   *    13:00-14:00 oynali testda soat 13:00 da kirgan o'quvchi 1 soat, 13:30 da kirgan
+   *    o'quvchi esa 30 daqiqa ishlaydi.
+   *  - Qayta ishlashga ruxsat berilgan urinish (attempt > 1): eski `endsAt` endi
+   *    ahamiyatsiz (u allaqachon o'tib ketgan bo'lishi mumkin — aynan shu sabab bilan
+   *    ustoz ruxsat bergan). Buning o'rniga yangi boshlangan vaqtdan `durationMinutes`
+   *    (agar berilgan bo'lsa) yoki testning asl oyna uzunligi (`endsAt - startsAt`,
+   *    standart sifatida) qo'shiladi.
+   */
+  private computeTestDeadline(test: Test, startedAt: Date, isRetry: boolean): Date | null {
+    if (isRetry) {
+      const startsAt = this.parseDateTime(test.startsAt);
+      const endsAt = this.parseDateTime(test.endsAt);
+      const windowMinutes =
+        startsAt && endsAt ? Math.round((endsAt.getTime() - startsAt.getTime()) / 60000) : null;
+      const minutes = test.durationMinutes ?? windowMinutes;
+      return minutes ? new Date(startedAt.getTime() + minutes * 60 * 1000) : null;
+    }
+    return this.parseDateTime(test.endsAt);
+  }
+
   private async autoExpireStaleTestResults() {
     const now = new Date();
 
@@ -92,21 +117,12 @@ export class TestsService implements OnModuleInit {
       const test = result.test;
       if (!test || !result.startedAt) continue;
 
-      // Ustoz "qayta ishlashga ruxsat berish" orqali reset qilgan urinish
-      // (attempt > 1) uchun testning umumiy `endsAt`i asos bo'la olmaydi —
-      // aks holda ruxsat berilgan zahoti (keyingi 30 soniya ichida) urinish
-      // yana avtomatik "muddati tugadi" deb yopib qo'yiladi, chunki ruxsat
-      // aynan testning umumiy vaqti allaqachon tugagan holatlar uchun
-      // beriladi. Bu yerda faqat aniq belgilangan `durationMinutes`
-      // (shu urinishning o'ziga tegishli chegara) hisobga olinadi —
-      // xuddi ensureTestCanBeSubmitted'dagi `isRetry` istisnosi kabi.
+      // Har bir urinish uchun deadline: oddiy urinishda testning umumiy tugash
+      // vaqtigacha; qayta ishlashga ruxsat berilgan urinishda esa yangi boshlangan
+      // vaqtdan + durationMinutes (yoki standart sifatida asl oyna uzunligi).
+      // Batafsili computeTestDeadline izohida.
       const isRetryAttempt = (result.attempt ?? 1) > 1;
-      const durationMinutes = test.durationMinutes ?? null;
-      const deadline = durationMinutes
-        ? new Date(new Date(result.startedAt).getTime() + durationMinutes * 60 * 1000)
-        : isRetryAttempt
-          ? null
-          : this.parseDateTime(test.endsAt);
+      const deadline = this.computeTestDeadline(test, new Date(result.startedAt), isRetryAttempt);
 
       // Muddat aniqlanmagan bo'lsa (davomiylik ham, endsAt ham yo'q, yoki
       // bu qayta ishlashga ruxsat berilgan urinish bo'lsa), avtomatik
@@ -1352,6 +1368,11 @@ Talablar:
     }
 
     if (existingCurrent && !existingCurrent.submittedAt) {
+      const deadline = this.computeTestDeadline(
+        test,
+        new Date(existingCurrent.startedAt),
+        (existingCurrent.attempt ?? 1) > 1,
+      );
       return succesRes({
         resultId: existingCurrent.id,
         testId,
@@ -1360,6 +1381,7 @@ Talablar:
         durationMinutes: test.durationMinutes ?? null,
         serverNow: new Date().toISOString(),
         endsAt: test.endsAt ?? null,
+        deadlineAt: deadline ? deadline.toISOString() : null,
       });
     }
 
@@ -1377,6 +1399,12 @@ Talablar:
 
     const saved = await this.resultRepo.save(result);
 
+    const deadline = this.computeTestDeadline(
+      test,
+      new Date(saved.startedAt),
+      (saved.attempt ?? 1) > 1,
+    );
+
     return succesRes({
       resultId: saved.id,
       testId,
@@ -1385,6 +1413,7 @@ Talablar:
       durationMinutes: test.durationMinutes ?? null,
       serverNow: new Date().toISOString(),
       endsAt: test.endsAt ?? null,
+      deadlineAt: deadline ? deadline.toISOString() : null,
     });
   }
 
@@ -1566,10 +1595,8 @@ Talablar:
 
     const startedAt = existingResult?.startedAt ?? new Date();
 
-    const durationMinutes = test.durationMinutes ?? null;
-    const deadline = durationMinutes
-      ? new Date(new Date(startedAt).getTime() + durationMinutes * 60 * 1000)
-      : null;
+    const isRetryAttempt = (existingResult?.attempt ?? 1) > 1;
+    const deadline = this.computeTestDeadline(test, new Date(startedAt), isRetryAttempt);
 
     if (deadline && new Date() > deadline) {
       const expiredResult = existingResult ?? this.resultRepo.create({

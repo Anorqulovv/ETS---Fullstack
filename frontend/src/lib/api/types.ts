@@ -337,6 +337,8 @@ export interface StartTestResponse {
   durationMinutes: number | null;
   serverNow: string;
   endsAt: string | null;
+  /** Backend hisoblagan aniq "qachongacha ishlash mumkin" vaqti — timer shundan foydalanadi. */
+  deadlineAt: string | null;
 }
 
 export interface SubmitTestResponse {

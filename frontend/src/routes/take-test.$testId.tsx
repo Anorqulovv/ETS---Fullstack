@@ -228,7 +228,19 @@ function TakeTestPage() {
     setPhase("loading");
     startMutation.mutate(testIdNum, {
       onSuccess: (res: StartTestResponse) => {
-        const totalSeconds = res.durationMinutes ? res.durationMinutes * 60 : null;
+        // Backend endi aniq "deadlineAt"ni hisoblab yuboradi: oddiy urinishda
+        // testning umumiy tugash vaqtigacha, qayta ishlashga ruxsat berilganda esa
+        // yangi boshlangan vaqtdan + davomiylik. `durationMinutes` endi timer uchun
+        // ishlatilmaydi (faqat intro ekranida ma'lumot sifatida ko'rsatiladi).
+        const totalSeconds =
+          res.deadlineAt && res.startedAt
+            ? Math.max(
+                0,
+                Math.round(
+                  (new Date(res.deadlineAt).getTime() - new Date(res.startedAt).getTime()) / 1000,
+                ),
+              )
+            : null;
         if (totalSeconds != null && res.startedAt) {
           // Elapsed vaqtni HAR IKKALA tomonni ham serverdan olingan vaqt bilan hisoblaymiz
           // (startedAt va serverNow — ikkalasi ham backend clock'i). Agar bu yerda
