@@ -19,6 +19,7 @@ import {
   type StoredAuthUser,
 } from "@/lib/auth-storage";
 import type { Role } from "@/lib/roles";
+import type { Gender } from "@/lib/api/types";
 
 export type AuthUser = StoredAuthUser;
 
@@ -87,6 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: fresh.username,
           phone: fresh.phone,
           role: fresh.role as Role,
+          gender: fresh.gender as Gender | undefined,
+          avatar: fresh.avatar as string | undefined,
           grantedRoles: (fresh.grantedRoles as Role[] | undefined) ?? [],
           salary: fresh.salary as number | undefined,
         };
