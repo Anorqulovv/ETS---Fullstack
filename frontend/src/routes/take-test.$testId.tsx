@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { readStoredToken, readStoredUser } from "@/lib/auth-storage";
 import {
   useMarkViolation,
+  useMyCodingResults,
   useStartTest,
   useSubmitCodingProblem,
   useSubmitTest,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/api/hooks";
 import type {
   CodingProblem,
+  CodingSubmission,
   CodingSubmissionFeedback,
   StartTestResponse,
   SubmitTestResponse,
@@ -95,6 +97,17 @@ function TakeTestPage() {
   // Masalalar (coding problems) — ixtiyoriy, faqat ustoz belgilagan bo'lsa yuklanadi.
   const { data: problems } = useTestProblems(phase === "active" ? testIdNum : undefined);
   const hasProblems = (problems?.length ?? 0) > 0;
+
+  // O'quvchi allaqachon AI bilan tekshirtirgan masalalar — shu urinish davomida
+  // qayta yechib bo'lmaydi, shuning uchun har bir masalaga oldingi (tekshirilgan)
+  // natijasini oldindan uzatamiz.
+  const { data: myResults } = useMyCodingResults(phase === "active" ? testIdNum : undefined);
+  const checkedByProblemId = new Map<number, CodingSubmission>();
+  for (const s of myResults?.submissions ?? []) {
+    if (s.status !== "CHECKED") continue;
+    const prev = checkedByProblemId.get(s.problemId);
+    if (!prev || (s.aiScore ?? 0) > (prev.aiScore ?? 0)) checkedByProblemId.set(s.problemId, s);
+  }
 
   // Guards against double-firing (e.g. blur + visibilitychange both fire for one tab switch).
   const lockedRef = useRef(false);
@@ -327,6 +340,7 @@ function TakeTestPage() {
                   index={pIdx + 1}
                   problem={problem}
                   testId={testIdNum}
+                  existingSubmission={problem.id ? checkedByProblemId.get(problem.id) : undefined}
                 />
               ))}
             </div>
@@ -515,15 +529,22 @@ function CodingProblemCard({
   index,
   problem,
   testId,
+  existingSubmission,
 }: {
   index: number;
   problem: CodingProblem;
   testId: number;
+  existingSubmission?: CodingSubmission;
 }) {
-  const [code, setCode] = useState(problem.starterCode ?? "");
-  const [language, setLanguage] = useState("javascript");
-  const [feedback, setFeedback] = useState<CodingSubmissionFeedback | null>(null);
-  const [score, setScore] = useState<number | null>(null);
+  const [code, setCode] = useState(existingSubmission?.code ?? problem.starterCode ?? "");
+  const [language, setLanguage] = useState(existingSubmission?.language ?? "javascript");
+  const [feedback, setFeedback] = useState<CodingSubmissionFeedback | null>(
+    (existingSubmission?.aiFeedback as CodingSubmissionFeedback | undefined) ?? null,
+  );
+  const [score, setScore] = useState<number | null>(existingSubmission?.aiScore ?? null);
+  // Bir marta AI bilan tekshirilgan masalani qayta o'zgartirib bo'lmaydi (backend ham
+  // buni ForbiddenException bilan taqiqlaydi — bu shunchaki UI darajasidagi aks ettirish).
+  const [locked, setLocked] = useState(Boolean(existingSubmission));
   const submitMutation = useSubmitCodingProblem();
 
   const difficultyMeta = DIFFICULTY_META[problem.difficulty] ?? {
@@ -532,13 +553,14 @@ function CodingProblemCard({
   };
 
   const handleCheck = () => {
-    if (!problem.id || !code.trim()) return;
+    if (!problem.id || !code.trim() || locked) return;
     submitMutation.mutate(
       { problemId: problem.id, testId, code, language },
       {
         onSuccess: (res) => {
           setFeedback(res.feedback);
           setScore(res.score);
+          setLocked(true);
         },
       },
     );
@@ -582,12 +604,13 @@ function CodingProblemCard({
           <button
             key={opt.value}
             type="button"
-            onClick={() => setLanguage(opt.value)}
+            onClick={() => !locked && setLanguage(opt.value)}
+            disabled={locked}
             className={`rounded-md border px-2 py-1 text-xs transition-colors ${
               language === opt.value
                 ? "border-primary bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-accent"
-            }`}
+            } ${locked ? "cursor-not-allowed opacity-60" : ""}`}
           >
             {opt.label}
           </button>
@@ -598,24 +621,32 @@ function CodingProblemCard({
         value={code}
         onChange={(e) => setCode(e.target.value)}
         placeholder="Yechimingizni shu yerga yozing..."
-        className="mt-2 min-h-[160px] font-mono text-sm"
+        className={`mt-2 min-h-[160px] font-mono text-sm ${locked ? "cursor-not-allowed opacity-70" : ""}`}
         spellCheck={false}
+        disabled={locked}
       />
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleCheck}
-          disabled={submitMutation.isPending || !code.trim()}
-        >
-          {submitMutation.isPending ? (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Braces className="mr-1.5 h-3.5 w-3.5" />
-          )}
-          AI bilan tekshirish
-        </Button>
+        {locked ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+            Bu masala tekshirilgan — endi o'zgartirib bo'lmaydi
+          </span>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCheck}
+            disabled={submitMutation.isPending || !code.trim()}
+          >
+            {submitMutation.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Braces className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            AI bilan tekshirish
+          </Button>
+        )}
         {score != null ? (
           <span className="text-sm font-semibold">
             Ball: <span className="text-primary">{score}</span>/100

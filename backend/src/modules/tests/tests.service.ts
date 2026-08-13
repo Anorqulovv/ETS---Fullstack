@@ -1806,6 +1806,25 @@ Talablar:
       );
     }
 
+    // Bir masala uchun AI bir marta tekshirgach, o'quvchi uni qayta o'zgartirib qayta
+    // yubora olmaydi — aks holda "eng yaxshi urinish" tanlash orqali natijani manipulyatsiya
+    // qilish mumkin bo'lardi.
+    if (currentResult) {
+      const alreadyChecked = await this.submissionRepo.findOne({
+        where: {
+          problemId: problem.id,
+          studentId: student.id,
+          testResultId: currentResult.id,
+          status: CodingSubmissionStatus.CHECKED,
+        },
+      });
+      if (alreadyChecked) {
+        throw new ForbiddenException(
+          'Siz bu masalani allaqachon AI bilan tekshirgansiz — uni qayta yechib bo\'lmaydi.',
+        );
+      }
+    }
+
     const submission = this.submissionRepo.create({
       problemId: problem.id,
       studentId: student.id,
