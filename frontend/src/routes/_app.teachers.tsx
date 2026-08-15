@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { directionsQ, teachersQ } from "@/lib/api/hooks";
 import type { Direction, Teacher } from "@/lib/api/types";
 import { mockDirections } from "@/lib/api/mock-data";
@@ -66,11 +74,39 @@ function DirectionsMultiSelect({
 function TeachersPage() {
   const { t } = useTranslation();
   const directions = directionsQ.useList({ limit: 200 }).data?.data ?? mockDirections;
+  const [directionFilter, setDirectionFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
+  // directionId backend'da (findAll query.directionId) filtrlanadi — samaraliroq.
+  // isActive esa backend tomonidan qo'llab-quvvatlanmaydi, shuning uchun olingan
+  // ro'yxatni client-side filtrlab, o'zimiz sahifalaymiz.
+  function useTeacherListWithFilters(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    directionId?: string;
+    isActive?: string;
+  }) {
+    const { page = 1, limit = 10, search, directionId, isActive } = params;
+    const raw = teachersQ.useList({ search, directionId, limit: 100000 });
+    const filtered = useMemo(() => {
+      const rows = raw.data?.data ?? [];
+      return isActive ? rows.filter((tc) => String(tc.isActive) === isActive) : rows;
+    }, [raw.data, isActive]);
+    const start = (page - 1) * limit;
+    const sliced = useMemo(
+      () => filtered.slice(start, start + limit),
+      [filtered, start, limit],
+    );
+    return { data: { data: sliced, total: filtered.length }, isLoading: raw.isLoading };
+  }
 
   const columns: Column<Teacher>[] = [
     {
       key: "name",
       header: t("common.name"),
+      sortable: true,
+      sortValue: (r) => r.fullName ?? "",
       cell: (r) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
@@ -115,6 +151,8 @@ function TeachersPage() {
     {
       key: "groups",
       header: t("nav.groups"),
+      sortable: true,
+      sortValue: (r) => r.groupsCount ?? 0,
       cell: (r) => <span className="tabular-nums">{r.groupsCount ?? 0}</span>,
     },
     {
@@ -137,7 +175,47 @@ function TeachersPage() {
       description={t("pages.teachers.subtitle")}
       navKey="teachers"
       columns={columns}
-      useList={teachersQ.useList}
+      useList={useTeacherListWithFilters}
+      extraListParams={{
+        directionId: directionFilter || undefined,
+        isActive: statusFilter || undefined,
+      }}
+      activeFilterCount={(directionFilter ? 1 : 0) + (statusFilter ? 1 : 0)}
+      onClearFilters={() => {
+        setDirectionFilter("");
+        setStatusFilter("");
+      }}
+      filters={
+        <>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">{t("nav.directions")}</Label>
+            <Select value={directionFilter || undefined} onValueChange={(v) => setDirectionFilter(v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={t("common.selectPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {directions.map((d) => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">{t("common.status")}</Label>
+            <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={t("common.selectPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">{t("status.active")}</SelectItem>
+                <SelectItem value="false">{t("status.inactive")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      }
       useCreate={teachersQ.useCreate}
       useUpdate={teachersQ.useUpdate}
       useRemove={teachersQ.useRemove}
