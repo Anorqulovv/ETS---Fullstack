@@ -238,14 +238,17 @@ function TestResultsDialog({
                 // it must never be shown as if the student had finished and scored 0.
                 const inProgress = res.isCurrent && !res.submittedAt;
                 return (
-                  <div key={res.id} className="rounded-md border p-2.5 text-sm">
+                  <div
+                    key={res.id}
+                    className={`rounded-md border p-2.5 text-sm ${!res.isCurrent ? "opacity-50" : ""}`}
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="truncate font-medium">
                           {res.studentName ?? `#${res.studentId}`}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {res.attempt}-urinish
+                          {res.attempt}-urinish{!res.isCurrent ? " (eski)" : ""}
                           {res.submittedAt ? ` · ${new Date(res.submittedAt).toLocaleString()}` : ""}
                           {res.forceScoreZero
                             ? ` · ${res.violationReason ?? t("pages.tests.violationDefaultShort")}`
