@@ -1,13 +1,22 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ShieldCheck } from "lucide-react";
 
 import { PageMotion } from "@/components/shared/page-motion";
 import { PageHeader } from "@/components/shared/page-header";
+import { FilterBar } from "@/components/shared/filter-bar";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,12 +41,30 @@ function PermissionsPage() {
   const { t } = useTranslation();
   const { data, isLoading } = useGrantableUsers();
   const [editing, setEditing] = useState<GrantableUser | null>(null);
-  const rows = data ?? [];
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const allRows = data ?? [];
+
+  // Bu sahifa ma'lumotlarni bir martada to'liq oladi (pagination yo'q), shuning
+  // uchun qidiruv/filter client-side amalga oshiriladi.
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return allRows.filter((r) => {
+      if (roleFilter && r.role !== roleFilter) return false;
+      if (!term) return true;
+      return (
+        r.fullName?.toLowerCase().includes(term) ||
+        r.username?.toLowerCase().includes(term)
+      );
+    });
+  }, [allRows, search, roleFilter]);
 
   const columns: Column<GrantableUser>[] = [
     {
       key: "fullName",
       header: t("common.title"),
+      sortable: true,
+      sortValue: (r) => r.fullName ?? "",
       cell: (r) => <span className="font-medium">{r.fullName}</span>,
     },
     { key: "username", header: t("common.username"), cell: (r) => `@${r.username}` },
@@ -76,6 +103,31 @@ function PermissionsPage() {
           title={t("pages.permissions.title")}
           description={t("pages.permissions.subtitle")}
         />
+
+        <FilterBar
+          search={search}
+          onSearch={setSearch}
+          activeFilterCount={roleFilter ? 1 : 0}
+          onClear={() => setRoleFilter("")}
+          filters={
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("pages.permissions.primaryRole")}</Label>
+              <Select value={roleFilter || undefined} onValueChange={(v) => setRoleFilter(v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t("common.selectPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
+
         <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
