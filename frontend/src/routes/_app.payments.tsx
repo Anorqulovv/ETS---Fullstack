@@ -308,16 +308,22 @@ function PaymentsPage() {
   // GET /payments/summary is SUPERADMIN/ADMIN only — other roles just won't see this card
   // (query silently stays empty, see usePaymentsSummary's throwOnError: false).
   const { data: summary } = usePaymentsSummary();
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [methodFilter, setMethodFilter] = useState<string>("");
 
   const columns: Column<Payment>[] = [
     {
       key: "student",
       header: t("nav.students"),
+      sortable: true,
+      sortValue: (r) => r.studentName ?? "",
       cell: (r) => r.studentName ?? "—",
     },
     {
       key: "amount",
       header: t("payments.amount"),
+      sortable: true,
+      sortValue: (r) => Number(r.amount) || 0,
       cell: (r) => <span className="tabular-nums font-medium">{format(r.amount)}</span>,
     },
     { key: "method", header: t("payments.method"), cell: (r) => r.method },
@@ -329,6 +335,8 @@ function PaymentsPage() {
     {
       key: "date",
       header: t("payments.paidAt"),
+      sortable: true,
+      sortValue: (r) => (r.paidAt ? new Date(r.paidAt).getTime() : 0),
       cell: (r) => (
         <span className="font-mono text-xs">
           {r.paidAt ? new Date(r.paidAt).toLocaleDateString("uz-UZ") : "—"}
@@ -399,6 +407,49 @@ function PaymentsPage() {
         navKey="payments"
         columns={columns}
         useList={paymentsQ.useList}
+        extraListParams={{
+          status: statusFilter || undefined,
+          method: methodFilter || undefined,
+        }}
+        activeFilterCount={(statusFilter ? 1 : 0) + (methodFilter ? 1 : 0)}
+        onClearFilters={() => {
+          setStatusFilter("");
+          setMethodFilter("");
+        }}
+        filters={
+          <>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("common.status")}</Label>
+              <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t("common.selectPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["PAID", "UNPAID", "PARTIAL"] as PaymentStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {t(`status.${s.toLowerCase()}`, s)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("payments.method")}</Label>
+              <Select value={methodFilter || undefined} onValueChange={(v) => setMethodFilter(v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t("common.selectPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["CASH", "CARD", "CLICK", "PAYME", "TRANSFER"] as PaymentMethod[]).map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        }
         useCreate={paymentsQ.useCreate}
         useUpdate={paymentsQ.useUpdate}
         useRemove={paymentsQ.useRemove}
