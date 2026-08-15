@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -34,6 +34,10 @@ export interface Column<T> {
   header: string;
   cell: (row: T) => ReactNode;
   className?: string;
+  /** Ustun sarlavhasiga bosib saralash yoqiladi (joriy sahifadagi qatorlar bo'yicha). */
+  sortable?: boolean;
+  /** Saralash uchun taqqoslanadigan qiymat — berilmasa, `cell()` natijasi matn sifatida ishlatiladi. */
+  sortValue?: (row: T) => string | number | null | undefined;
 }
 
 interface DataTableProps<T> {
@@ -73,6 +77,45 @@ export function DataTable<T extends { id?: string | number }>({
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasActions = Boolean(onEdit || onDelete || rowActions);
 
+  // Saralash faqat joriy sahifadagi qatorlar bo'yicha ishlaydi (backend butun
+  // ma'lumotlar to'plamini emas, faqat shu sahifani qaytaradi). Ustun sarlavhasiga
+  // bosilganda: yo'q -> o'sish -> kamayish -> yo'q tartibida almashadi.
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleSort(col: Column<T>) {
+    if (!col.sortable) return;
+    if (sortKey !== col.key) {
+      setSortKey(col.key);
+      setSortDir("asc");
+    } else if (sortDir === "asc") {
+      setSortDir("desc");
+    } else {
+      setSortKey(null);
+    }
+  }
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+    const col = columns.find((c) => c.key === sortKey);
+    if (!col) return rows;
+    const valueOf = (row: T): string | number => {
+      const raw = col.sortValue ? col.sortValue(row) : (col.cell(row) as unknown);
+      if (raw == null) return "";
+      if (typeof raw === "number") return raw;
+      return String(raw).toLowerCase();
+    };
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      const av = valueOf(a);
+      const bv = valueOf(b);
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return copy;
+  }, [rows, columns, sortKey, sortDir]);
+
   return (
     <div className="rounded-xl border bg-card shadow-soft">
       <div className="scrollbar-thin overflow-x-auto">
@@ -91,7 +134,26 @@ export function DataTable<T extends { id?: string | number }>({
               <TableRow className="hover:bg-transparent">
                 {columns.map((c) => (
                   <TableHead key={c.key} className={c.className}>
-                    {c.header}
+                    {c.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(c)}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                      >
+                        {c.header}
+                        {sortKey === c.key ? (
+                          sortDir === "asc" ? (
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                        )}
+                      </button>
+                    ) : (
+                      c.header
+                    )}
                   </TableHead>
                 ))}
                 {hasActions ? (
@@ -101,7 +163,7 @@ export function DataTable<T extends { id?: string | number }>({
             </TableHeader>
             <TableBody>
               <AnimatePresence initial={false}>
-                {rows.map((row, i) => (
+                {sortedRows.map((row, i) => (
                   <motion.tr
                     key={keyOf ? keyOf(row) : (row.id ?? i)}
                     initial={{ opacity: 0, y: 4 }}
