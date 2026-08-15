@@ -342,10 +342,13 @@ function TestReviewDialog({
         ) : (
           <div className="space-y-6">
             {review.attempts.map((attempt) => (
-              <div key={attempt.resultId} className="space-y-2">
+              <div
+                key={attempt.resultId}
+                className={`space-y-2 ${!attempt.isCurrent ? "opacity-50" : ""}`}
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
-                    {attempt.attempt}-urinish{attempt.isCurrent ? " (joriy)" : ""}
+                    {attempt.attempt}-urinish{attempt.isCurrent ? " (joriy)" : " (eski)"}
                   </span>
                   <Badge variant="secondary">{attempt.score}/100</Badge>
                 </div>
