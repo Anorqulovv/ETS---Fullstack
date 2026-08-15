@@ -79,24 +79,24 @@ export class TestsService implements OnModuleInit {
   /**
    * Bitta test urinishi uchun "qachongacha ishlash mumkin" chegarasini hisoblaydi.
    *
-   * Har doim bir xil qoida — oddiy urinish uchun ham, qayta ishlashga ruxsat
-   * berilgan urinish uchun ham: testning umumiy tugash vaqti (`endsAt`)gacha.
-   * `durationMinutes` faqat ma'lumot uchun (masalan "45 daqiqa" deb ko'rsatish),
-   * timerga ta'sir qilmaydi. Shunday qilib 13:00-14:00 oynali testda soat 13:00 da
-   * kirgan o'quvchi 1 soat, 13:30 da kirgan o'quvchi esa 30 daqiqa ishlaydi.
-   *
-   * Qayta ishlashga ruxsat berilganda ham xuddi shu qoida: agar `endsAt`
-   * allaqachon o'tib ketgan bo'lsa (odatda shuning uchun ruxsat berilgan),
-   * ustoz testni tahrirlab `endsAt`ni uzaytirishi kerak — aks holda o'quvchiga
-   * vaqt qolmaydi.
+   * Ikkala holat uchun ham (oddiy urinish va qayta ishlashga ruxsat berilgan
+   * urinish uchun bir xil):
+   *  - Testda `endsAt` (umumiy tugash vaqti) belgilangan bo'lsa — har doim shunga
+   *    asoslanadi, `durationMinutes`dan qat'iy nazar. Shunday qilib 13:00-14:00
+   *    oynali testda soat 13:00 da kirgan o'quvchi 1 soat, 13:30 da kirgan
+   *    o'quvchi esa 30 daqiqa ishlaydi. Qayta ruxsat berilganda ham xuddi shu —
+   *    agar `endsAt` allaqachon o'tib ketgan bo'lsa, ustoz testni tahrirlab
+   *    `endsAt`ni uzaytirishi kerak, aks holda o'quvchiga vaqt qolmaydi.
+   *  - Testda `endsAt` umuman belgilanmagan (faqat `durationMinutes` berilgan,
+   *    aniq oyna yo'q) bo'lsa — boshlagan vaqtidan + `durationMinutes` hisoblanadi
+   *    (klassik "N daqiqalik test" rejimi).
    */
-  private computeTestDeadline(test: Test, _startedAt: Date, _isRetry: boolean): Date | null {
-    // Qayta ishlashga ruxsat berilgan urinish uchun ham, oddiy urinish uchun ham bir xil
-    // qoida: testning umumiy tugash vaqti (endsAt) asos bo'ladi — o'quvchi qachon kirgan
-    // bo'lsa, o'sha lahzadan endsAt'gacha ishlaydi. Agar ustoz "qayta ishlashga ruxsat
-    // berish"ni bosayotgan paytda endsAt allaqachon o'tib ketgan bo'lsa, u testni
-    // tahrirlab endsAt'ni ham uzaytirishi kerak — aks holda o'quvchiga vaqt qolmaydi.
-    return this.parseDateTime(test.endsAt);
+  private computeTestDeadline(test: Test, startedAt: Date, _isRetry: boolean): Date | null {
+    const endsAt = this.parseDateTime(test.endsAt);
+    if (endsAt) return endsAt;
+    return test.durationMinutes
+      ? new Date(startedAt.getTime() + test.durationMinutes * 60 * 1000)
+      : null;
   }
 
   private async autoExpireStaleTestResults() {
