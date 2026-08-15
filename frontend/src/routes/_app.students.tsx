@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Eye } from "lucide-react";
@@ -28,10 +29,39 @@ export const Route = createFileRoute("/_app/students")({
 function StudentsPage() {
   const { t } = useTranslation();
   const groups = groupsQ.useList({ limit: 200 }).data?.data ?? mockGroups;
+  const [groupFilter, setGroupFilter] = useState<string>("");
+
+  // Backend GET /students hech qanday filtr/pagination query parametrini qabul
+  // qilmaydi — har doim ruxsat etilgan hamma o'quvchini qaytaradi (qidiruv esa
+  // apiList/normalizePaginated orqali frontend tomonda amalga oshiriladi). Shu
+  // sababli guruh bo'yicha filtrni ham xuddi shu tarzda — olingan ro'yxatni
+  // client-side filtrlab, keyin o'zimiz sahifalab — amalga oshiramiz.
+  function useStudentListWithGroupFilter(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    groupId?: string;
+  }) {
+    const { page = 1, limit = 10, search, groupId } = params;
+    const raw = studentsQ.useList({ search, limit: 100000 });
+    const filtered = useMemo(() => {
+      const rows = raw.data?.data ?? [];
+      return groupId ? rows.filter((s) => String(s.groupId) === groupId) : rows;
+    }, [raw.data, groupId]);
+    const start = (page - 1) * limit;
+    const sliced = useMemo(
+      () => filtered.slice(start, start + limit),
+      [filtered, start, limit],
+    );
+    return { data: { data: sliced, total: filtered.length }, isLoading: raw.isLoading };
+  }
+
   const columns: Column<Student>[] = [
     {
       key: "name",
       header: t("common.name"),
+      sortable: true,
+      sortValue: (r) => r.fullName ?? "",
       cell: (r) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
@@ -59,6 +89,8 @@ function StudentsPage() {
     {
       key: "group",
       header: t("nav.groups"),
+      sortable: true,
+      sortValue: (r) => groups.find((g) => g.id === r.groupId)?.name ?? "",
       cell: (r) => groups.find((g) => g.id === r.groupId)?.name ?? "—",
     },
     {
@@ -97,7 +129,27 @@ function StudentsPage() {
       description={t("pages.students.subtitle")}
       navKey="students"
       columns={columns}
-      useList={studentsQ.useList}
+      useList={useStudentListWithGroupFilter}
+      extraListParams={{ groupId: groupFilter || undefined }}
+      activeFilterCount={groupFilter ? 1 : 0}
+      onClearFilters={() => setGroupFilter("")}
+      filters={
+        <div className="grid gap-1.5">
+          <Label className="text-xs">{t("nav.groups")}</Label>
+          <Select value={groupFilter || undefined} onValueChange={(v) => setGroupFilter(v)}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={t("common.selectPlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={String(g.id)}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      }
       useCreate={useCreateStudent}
       useUpdate={studentsQ.useUpdate}
       useRemove={studentsQ.useRemove}
