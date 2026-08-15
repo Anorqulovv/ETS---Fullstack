@@ -361,6 +361,7 @@
       "addNewItem": "Yangi mahsulot qo'shish",
       "itemName": "Nomi",
       "itemCost": "Narxi (ball)",
+      "itemImageUrl": "Rasm URL manzili",
       "itemStock": "Soni (bo'sh — cheksiz)",
       "itemDescription": "Tavsif (ixtiyoriy)",
       "loading": "Yuklanmoqda…",

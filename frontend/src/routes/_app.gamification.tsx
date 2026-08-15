@@ -113,6 +113,7 @@ function ShopSection() {
   const [cost, setCost] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
 
   function handleCreate() {
     if (!name || !cost) return;
@@ -122,6 +123,7 @@ function ShopSection() {
         cost: Number(cost),
         stock: stock ? Number(stock) : undefined,
         description: description || undefined,
+        imageUrl: imageUrl || undefined,
       },
       {
         onSuccess: () => {
@@ -129,6 +131,7 @@ function ShopSection() {
           setCost("");
           setStock("");
           setDescription("");
+          setImageUrl("");
         },
       },
     );
@@ -151,6 +154,13 @@ function ShopSection() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item) => (
               <div key={item.id} className="flex flex-col gap-2 rounded-md border p-3">
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="h-32 w-full rounded-md object-cover"
+                  />
+                ) : null}
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="font-medium">{item.name}</div>
@@ -199,7 +209,7 @@ function ShopSection() {
         {canManage ? (
           <div className="space-y-2 rounded-md border border-dashed p-3">
             <p className="text-xs font-medium text-muted-foreground">{t("pages.gamification.addNewItem")}</p>
-            <div className="grid gap-2 sm:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-5">
               <Input placeholder={t("pages.gamification.itemName")} value={name} onChange={(e) => setName(e.target.value)} />
               <Input
                 type="number"
@@ -212,6 +222,11 @@ function ShopSection() {
                 placeholder={t("pages.gamification.itemStock")}
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
+              />
+              <Input
+                placeholder={t("pages.gamification.itemImageUrl")}
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
               />
               <Button onClick={handleCreate} disabled={!name || !cost || createItem.isPending}>
                 <Plus className="mr-1.5 h-3.5 w-3.5" />

@@ -361,6 +361,7 @@
       "addNewItem": "Add a new item",
       "itemName": "Name",
       "itemCost": "Cost (points)",
+      "itemImageUrl": "Image URL",
       "itemStock": "Stock (blank = unlimited)",
       "itemDescription": "Description (optional)",
       "loading": "Loading…",
