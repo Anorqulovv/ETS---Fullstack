@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { CalendarX2, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
@@ -255,11 +255,41 @@ function GroupsPage() {
   const directions = directionsQ.useList({ limit: 200 }).data?.data ?? mockDirections;
   const teachers = teachersQ.useList({ limit: 200 }).data?.data ?? mockTeachers;
   const branches = branchesQ.useList({ limit: 200 }).data?.data ?? mockBranches;
+  const [directionFilter, setDirectionFilter] = useState<string>("");
+  const [teacherFilter, setTeacherFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
+  // directionId/teacherId backend'da (GroupsService.findAll) filtrlanadi. status esa
+  // backend tomonidan qo'llab-quvvatlanmaydi — client-side filtrlab, o'zimiz
+  // sahifalaymiz.
+  function useGroupListWithFilters(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    directionId?: string;
+    teacherId?: string;
+    status?: string;
+  }) {
+    const { page = 1, limit = 10, search, directionId, teacherId, status } = params;
+    const raw = groupsQ.useList({ search, directionId, teacherId, limit: 100000 });
+    const filtered = useMemo(() => {
+      const rows = raw.data?.data ?? [];
+      return status ? rows.filter((g) => g.status === status) : rows;
+    }, [raw.data, status]);
+    const start = (page - 1) * limit;
+    const sliced = useMemo(
+      () => filtered.slice(start, start + limit),
+      [filtered, start, limit],
+    );
+    return { data: { data: sliced, total: filtered.length }, isLoading: raw.isLoading };
+  }
 
   const columns: Column<Group>[] = [
     {
       key: "name",
       header: t("common.title"),
+      sortable: true,
+      sortValue: (r) => r.name ?? "",
       cell: (r) => <span className="font-medium">{r.name}</span>,
     },
     {
@@ -280,6 +310,8 @@ function GroupsPage() {
     {
       key: "students",
       header: t("nav.students"),
+      sortable: true,
+      sortValue: (r) => r.studentsCount ?? 0,
       cell: (r) => <span className="tabular-nums">{r.studentsCount ?? 0}</span>,
     },
     {
@@ -324,7 +356,69 @@ function GroupsPage() {
       description={t("pages.groups.subtitle")}
       navKey="groups"
       columns={columns}
-      useList={groupsQ.useList}
+      useList={useGroupListWithFilters}
+      extraListParams={{
+        directionId: directionFilter || undefined,
+        teacherId: teacherFilter || undefined,
+        status: statusFilter || undefined,
+      }}
+      activeFilterCount={
+        (directionFilter ? 1 : 0) + (teacherFilter ? 1 : 0) + (statusFilter ? 1 : 0)
+      }
+      onClearFilters={() => {
+        setDirectionFilter("");
+        setTeacherFilter("");
+        setStatusFilter("");
+      }}
+      filters={
+        <>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">{t("nav.directions")}</Label>
+            <Select value={directionFilter || undefined} onValueChange={(v) => setDirectionFilter(v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={t("common.selectPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {directions.map((d) => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">{t("nav.teachers")}</Label>
+            <Select value={teacherFilter || undefined} onValueChange={(v) => setTeacherFilter(v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={t("common.selectPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {teachers.map((tc) => (
+                  <SelectItem key={tc.id} value={String(tc.id)}>
+                    {tc.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">{t("common.status")}</Label>
+            <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={t("common.selectPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      }
       useCreate={groupsQ.useCreate}
       useUpdate={groupsQ.useUpdate}
       useRemove={groupsQ.useRemove}
