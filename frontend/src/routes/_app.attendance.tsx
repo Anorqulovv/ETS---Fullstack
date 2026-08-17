@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Users2 } from "lucide-react";
@@ -43,15 +43,49 @@ function statusColor(isPresent: boolean) {
 
 function AttendancePage() {
   const { t } = useTranslation();
+  const groups = groupsQ.useList({ limit: 200 }).data?.data ?? [];
+  const [groupFilter, setGroupFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
+  // Backend GET /attendance hech qanday filtr/pagination query parametrini
+  // qabul qilmaydi — har doim ruxsat etilgan hamma yozuvni qaytaradi. Shuning
+  // uchun guruh/holat bo'yicha filtrni client-side qilib, o'zimiz sahifalaymiz.
+  function useAttendanceListWithFilters(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    groupId?: string;
+    isPresent?: string;
+  }) {
+    const { page = 1, limit = 10, search, groupId, isPresent } = params;
+    const raw = attendanceQ.useList({ search, limit: 100000 });
+    const filtered = useMemo(() => {
+      let rows = raw.data?.data ?? [];
+      if (groupId) rows = rows.filter((a) => String(a.groupId) === groupId);
+      if (isPresent) rows = rows.filter((a) => String(a.isPresent) === isPresent);
+      return rows;
+    }, [raw.data, groupId, isPresent]);
+    const start = (page - 1) * limit;
+    const sliced = useMemo(
+      () => filtered.slice(start, start + limit),
+      [filtered, start, limit],
+    );
+    return { data: { data: sliced, total: filtered.length }, isLoading: raw.isLoading };
+  }
+
   const columns: Column<AttendanceRecord>[] = [
     {
       key: "student",
       header: t("nav.students"),
+      sortable: true,
+      sortValue: (r) => r.studentName ?? "",
       cell: (r) => r.studentName ?? "—",
     },
     {
       key: "timestamp",
       header: t("common.date"),
+      sortable: true,
+      sortValue: (r) => (r.timestamp ? new Date(r.timestamp).getTime() : 0),
       cell: (r) => (
         <span className="font-mono text-xs">
           {r.timestamp ? new Date(r.timestamp).toLocaleString() : "—"}
@@ -97,7 +131,47 @@ function AttendancePage() {
         description={t("pages.attendance.subtitle")}
         navKey="attendance"
         columns={columns}
-        useList={attendanceQ.useList}
+        useList={useAttendanceListWithFilters}
+        extraListParams={{
+          groupId: groupFilter || undefined,
+          isPresent: statusFilter || undefined,
+        }}
+        activeFilterCount={(groupFilter ? 1 : 0) + (statusFilter ? 1 : 0)}
+        onClearFilters={() => {
+          setGroupFilter("");
+          setStatusFilter("");
+        }}
+        filters={
+          <>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("nav.groups")}</Label>
+              <Select value={groupFilter || undefined} onValueChange={(v) => setGroupFilter(v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t("common.selectPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("common.status")}</Label>
+              <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t("common.selectPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">{t("status.present")}</SelectItem>
+                  <SelectItem value="false">{t("status.absent")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        }
         useCreate={useCreateAttendance}
         useUpdate={attendanceQ.useUpdate}
         useRemove={attendanceQ.useRemove}

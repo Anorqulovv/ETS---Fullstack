@@ -221,6 +221,8 @@ export interface AttendanceRecord {
   studentId: number;
   /** Derived client-side from the nested student.user relation (see flattenAttendance). */
   studentName?: string;
+  /** Derived client-side from the nested student.group relation (see flattenAttendance). */
+  groupId?: number;
   isPresent: boolean;
   type?: string;
   timestamp?: string;

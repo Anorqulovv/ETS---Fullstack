@@ -229,11 +229,12 @@ function flattenPayment(raw: unknown): Payment {
 /** Backend includes the student.user relation but not a flat name — derive it (see AttendanceController's `relations: ['student', 'student.user', ...]`). */
 function flattenAttendance(raw: unknown): AttendanceRecord {
   const r = (raw ?? {}) as AttendanceRecord & {
-    student?: { user?: { fullName?: string } };
+    student?: { user?: { fullName?: string }; groupId?: number; group?: { id?: number } };
   };
   return {
     ...r,
     studentName: r.student?.user?.fullName ?? r.studentName,
+    groupId: r.student?.groupId ?? r.student?.group?.id ?? r.groupId,
   };
 }
 function errorMessage(error: unknown, fallback: string): string {
