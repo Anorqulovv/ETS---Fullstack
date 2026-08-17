@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
@@ -6,6 +7,13 @@ import type { Column } from "@/components/shared/data-table";
 import { GenderSelect } from "@/components/shared/gender-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { parentsQ } from "@/lib/api/hooks";
 import type { Parent } from "@/lib/api/types";
 
@@ -16,10 +24,39 @@ export const Route = createFileRoute("/_app/parents")({
 
 function ParentsPage() {
   const { t } = useTranslation();
+  const [hasChildrenFilter, setHasChildrenFilter] = useState<string>("");
+
+  // Backend GET /parents hech qanday filtr/pagination query parametrini qabul
+  // qilmaydi — client-side filtrlab, o'zimiz sahifalaymiz.
+  function useParentListWithFilters(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    hasChildren?: string;
+  }) {
+    const { page = 1, limit = 10, search, hasChildren } = params;
+    const raw = parentsQ.useList({ search, limit: 100000 });
+    const filtered = useMemo(() => {
+      const rows = raw.data?.data ?? [];
+      if (!hasChildren) return rows;
+      return rows.filter((p) =>
+        hasChildren === "yes" ? (p.childrenCount ?? 0) > 0 : (p.childrenCount ?? 0) === 0,
+      );
+    }, [raw.data, hasChildren]);
+    const start = (page - 1) * limit;
+    const sliced = useMemo(
+      () => filtered.slice(start, start + limit),
+      [filtered, start, limit],
+    );
+    return { data: { data: sliced, total: filtered.length }, isLoading: raw.isLoading };
+  }
+
   const columns: Column<Parent>[] = [
     {
       key: "name",
       header: t("common.name"),
+      sortable: true,
+      sortValue: (r) => r.fullName ?? "",
       cell: (r) => <span className="font-medium">{r.fullName}</span>,
     },
     {
@@ -30,6 +67,8 @@ function ParentsPage() {
     {
       key: "children",
       header: "Children",
+      sortable: true,
+      sortValue: (r) => r.childrenCount ?? 0,
       cell: (r) => <span className="tabular-nums">{r.childrenCount ?? 0}</span>,
     },
   ];
@@ -39,7 +78,27 @@ function ParentsPage() {
       description={t("pages.parents.subtitle")}
       navKey="parents"
       columns={columns}
-      useList={parentsQ.useList}
+      useList={useParentListWithFilters}
+      extraListParams={{ hasChildren: hasChildrenFilter || undefined }}
+      activeFilterCount={hasChildrenFilter ? 1 : 0}
+      onClearFilters={() => setHasChildrenFilter("")}
+      filters={
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Farzandi</Label>
+          <Select
+            value={hasChildrenFilter || undefined}
+            onValueChange={(v) => setHasChildrenFilter(v)}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={t("common.selectPlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yes">Bor</SelectItem>
+              <SelectItem value="no">Yo'q</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      }
       useCreate={parentsQ.useCreate}
       useUpdate={parentsQ.useUpdate}
       useRemove={parentsQ.useRemove}
