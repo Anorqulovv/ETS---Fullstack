@@ -69,6 +69,19 @@ export class GamificationService {
     }
   }
 
+  /**
+   * Called from HomeworkService right after a submission is graded. Never throws — same
+   * reasoning as awardForTest/awardForAttendance.
+   */
+  async awardForHomework(studentId: number, submissionId: number, score: number): Promise<void> {
+    try {
+      const points = Math.round(score);
+      await this.addPoints(studentId, PointsSource.HOMEWORK, points, submissionId, 'Uyga vazifa baholandi');
+    } catch (e) {
+      this.logger.error(`awardForHomework failed for student ${studentId}: ${e}`);
+    }
+  }
+
   private async addPoints(
     studentId: number,
     source: PointsSource,

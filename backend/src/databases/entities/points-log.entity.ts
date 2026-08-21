@@ -5,6 +5,8 @@ import { Student } from './student.entity';
 export enum PointsSource {
   ATTENDANCE = 'ATTENDANCE',
   TEST = 'TEST',
+  /** Uyga vazifa baholanganda — see GamificationService.awardForHomework. */
+  HOMEWORK = 'HOMEWORK',
   /** Awarded directly by SUPERADMIN/ADMIN/TEACHER, any reason — see GamificationService.award. */
   MANUAL = 'MANUAL',
   /** Spent on a shop item — amount is negative. refId is the ShopItem id. */
