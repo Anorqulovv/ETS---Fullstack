@@ -112,7 +112,8 @@
     "none": "Yo'q",
     "genderRequired": "Jinsini tanlash shart",
     "view": "Ko'rish",
-    "endsAt": "Tugash vaqti"
+    "endsAt": "Tugash vaqti",
+    "viewProfile": "Profilni ko'rish"
   },
   "toast": {
     "created": "Muvaffaqiyatli yaratildi",

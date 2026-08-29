@@ -1,7 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { User } from './user.entity';
 
+// Har bir user'ning bildirishnoma ro'yxati va o'qilmagan sonini hisoblash
+// recipientId + isRead bo'yicha filtrlaydi — composite index shu ikkalasini birga qamraydi.
+@Index(['recipientId', 'isRead'])
 @Entity('notifications')
 export class Notification extends BaseEntity {
   @Column({ nullable: true })

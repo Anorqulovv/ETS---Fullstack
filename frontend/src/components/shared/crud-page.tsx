@@ -39,6 +39,8 @@ interface CrudPageProps<T> {
   emptyTitle?: string;
   keyOf?: (row: T) => string | number;
   dialogSize?: "sm" | "md" | "lg" | "xl";
+  /** Extra per-row dropdown menu items, rendered above Edit/Delete. */
+  rowActions?: (row: T) => React.ReactNode;
   /** Client-side check run right before create/update — return an error message to block the
    * save (shown as a toast), or null/undefined when the form is fine. */
   validate?: (row: Partial<T>) => string | null | undefined;
@@ -63,6 +65,7 @@ export function CrudPage<T extends { id?: string | number }>({
   emptyTitle,
   keyOf,
   dialogSize,
+  rowActions,
   validate,
 }: CrudPageProps<T>) {
   const { t } = useTranslation();
@@ -162,6 +165,7 @@ export function CrudPage<T extends { id?: string | number }>({
           }}
           onEdit={allowed ? openEdit : undefined}
           onDelete={deleteAllowed ? (row) => setToDelete(row) : undefined}
+          rowActions={rowActions}
           emptyTitle={emptyTitle}
           keyOf={keyOf}
         />

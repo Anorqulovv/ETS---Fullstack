@@ -31,6 +31,23 @@ export const envConfig = {
         GEMINI_API_KEY: String(process.env.GEMINI_API_KEY || ''),
         GEMINI_MODEL: String(process.env.GEMINI_MODEL || 'gemini-1.5-flash'),
         AI_TEST_GENERATION_ENABLED: String(process.env.AI_TEST_GENERATION_ENABLED || 'false') === 'true',
-    }
-    
+    },
+
+    // Fayl saqlash (homework/avatar) — S3 yoki S3-mos xizmat (Selectel, Yandex
+    // Object Storage va h.k.). Xuddi scripts/backup-db.sh'dagi S3_BUCKET /
+    // S3_ENDPOINT_URL bilan bir xil nom — ikkalasi bir xil bucket'ga yozishi shart
+    // emas, lekin bir xil xizmat/hisobga ulanadi. Bo'sh qoldirilsa (dev muhitida)
+    // StorageService fayllarni bazada base64 saqlashga qaytadi — hech narsa
+    // sozlanmaguncha loyiha ishlashda davom etadi.
+    STORAGE: {
+        S3_BUCKET: String(process.env.S3_BUCKET || ''),
+        S3_ENDPOINT_URL: String(process.env.S3_ENDPOINT_URL || ''),
+        S3_REGION: String(process.env.S3_REGION || 'us-east-1'),
+        S3_ACCESS_KEY_ID: String(process.env.S3_ACCESS_KEY_ID || ''),
+        S3_SECRET_ACCESS_KEY: String(process.env.S3_SECRET_ACCESS_KEY || ''),
+        // Ochiq (public-read) bucket uchun — fayl URL shu prefiks + key bo'ladi.
+        // Bo'sh qoldirilsa, standart virtual-hosted-style S3 URL quriladi.
+        S3_PUBLIC_URL_BASE: String(process.env.S3_PUBLIC_URL_BASE || ''),
+    },
+
 }

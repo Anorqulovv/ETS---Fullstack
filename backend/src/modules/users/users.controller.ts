@@ -48,6 +48,14 @@ export class UsersController {
     return this.usersService.findAllUsers(query);
   }
 
+  // Admin panel — foydalanuvchi haqida to'liq ma'lumotli sahifa (rolga qarab
+  // statistika + so'nggi harakatlar). :id dan oldin turishi shart, aks holda
+  // Nest buni :id sifatida talqin qilib qo'yadi.
+  @Get(':id/profile')
+  getProfile(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getUserProfile(id);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOneById(id); // BaseService'dan keladi

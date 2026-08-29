@@ -112,7 +112,8 @@
     "genderRequired": "Gender is required",
     "view": "View",
     "endsAt": "End time",
-    "title": "Name"
+    "title": "Name",
+    "viewProfile": "View profile"
   },
   "toast": {
     "created": "Created successfully",

@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Student } from './student.entity';
 import { Group } from './group.entity';
@@ -9,6 +9,7 @@ import { PaymentKind } from 'src/common/enums/paymentKind.enum';
 
 @Entity('payments')
 export class Payment extends BaseEntity {
+  @Index()
   @Column()
   studentId: number;
 

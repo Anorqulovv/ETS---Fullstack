@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Student } from './student.entity';
 
@@ -15,6 +15,7 @@ export enum PointsSource {
 
 @Entity('points_logs')
 export class PointsLog extends BaseEntity {
+  @Index()
   @Column()
   studentId: number;
 

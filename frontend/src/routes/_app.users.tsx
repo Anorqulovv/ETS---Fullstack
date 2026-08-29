@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { Eye } from "lucide-react";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
@@ -7,6 +8,7 @@ import { GenderSelect } from "@/components/shared/gender-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { usersQ } from "@/lib/api/hooks";
 import type { User } from "@/lib/api/types";
 
@@ -66,6 +68,13 @@ function UsersPage() {
       useRemove={usersQ.useRemove}
       createTitle={t("pages.users.createTitle")}
       validate={(row) => (!row.gender ? t("common.genderRequired") : null)}
+      rowActions={(row) => (
+        <DropdownMenuItem asChild>
+          <Link to="/users/$userId" params={{ userId: String(row.id) }}>
+            <Eye className="mr-2 h-4 w-4" /> {t("common.viewProfile")}
+          </Link>
+        </DropdownMenuItem>
+      )}
       renderForm={(row, onChange) => (
         <div className="grid gap-4">
           <div className="grid gap-1.5">

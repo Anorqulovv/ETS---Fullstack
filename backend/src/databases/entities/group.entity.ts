@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, OneToMany, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Student } from './student.entity';
 import { User } from './user.entity';
 import { BaseEntity } from './Base.entity';
@@ -17,6 +17,7 @@ export class Group extends BaseEntity {
   })
   status: GroupStatus;
 
+  @Index()
   @Column()
   teacherId: number;
 
@@ -59,6 +60,7 @@ export class Group extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   lessonDuration?: number;
 
+  @Index()
   @Column({ nullable: true })
   branchId?: number;
 }

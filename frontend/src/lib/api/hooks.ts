@@ -37,6 +37,7 @@ import type {
   HomeworkAssignment,
   HomeworkSubmission,
   User,
+  UserProfile,
   CodingProblem,
   CodingSubmission,
   SubmitCodingProblemResponse,
@@ -931,6 +932,16 @@ export const usersQ = createCrudHooks<User>(RESOURCES.users, "users", undefined,
   "gender",
   "isActive",
 ]);
+
+/** GET /users/:id/profile — admin uchun batafsil sahifa: rolga qarab statistika + so'nggi harakatlar. */
+export function useUserProfile(id?: number | string) {
+  return useQuery({
+    queryKey: ["users", id, "profile"],
+    queryFn: () => apiRequest<UserProfile>({ url: `${RESOURCES.users}/${id}/profile`, method: "GET" }),
+    enabled: id != null,
+  });
+}
+
 export const supportsQ = createCrudHooks<User>(
   RESOURCES.supportTeachers,
   "support-teachers",

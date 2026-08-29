@@ -4,10 +4,17 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin123
+      # .env faylidan o'qiladi (POSTGRES_PASSWORD) — hech qachon shu faylga
+      # hardcode qilinmasin. DB_URL (api service .env orqali o'qiydi) ham shu
+      # parolga mos bo'lishi shart.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env faylida ko'rsatilishi shart}
       POSTGRES_DB: edu_db
     ports:
-      - "5432:5432"
+      # Faqat localhost'ga ochiq — internetdan to'g'ridan-to'g'ri ulanib
+      # bo'lmaydi (api container'i ichki Docker tarmog'i orqali ulanadi,
+      # bunga bu port kerak emas — bu faqat serverdan turib qo'lda
+      # tekshirish/SSH tunnel uchun qoldirilgan).
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -15,7 +22,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
 

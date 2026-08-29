@@ -1,9 +1,12 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { User } from './user.entity';
 
 @Entity('user_activities')
 export class UserActivity extends BaseEntity {
+  // Bu jadval eng tez o'sadigan jadvallardan biri (har bir user harakati yozilyapti) —
+  // userId index'siz bu tez orada eng sekin jadvalga aylanadi.
+  @Index()
   @Column({ nullable: true })
   userId: number;
 

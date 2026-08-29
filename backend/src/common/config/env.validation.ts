@@ -156,6 +156,31 @@ class EnvironmentVariables {
   @IsOptional()
   @IsBooleanString({ message: 'AI_TEST_GENERATION_ENABLED faqat "true" yoki "false" bo\'lishi mumkin' })
   AI_TEST_GENERATION_ENABLED?: string;
+
+  // ── Fayl saqlash: homework/avatar (ixtiyoriy — bo'sh bo'lsa DB fallback) ──
+  @IsOptional()
+  @IsString()
+  S3_BUCKET?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_ENDPOINT_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_REGION?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_ACCESS_KEY_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_SECRET_ACCESS_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_PUBLIC_URL_BASE?: string;
 }
 
 /**

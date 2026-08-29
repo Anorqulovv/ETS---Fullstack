@@ -387,6 +387,44 @@ export interface User {
   password?: string;
   /** Monthly salary — settable by SUPERADMIN/ADMIN, never sent back on list/detail reads. */
   salary?: number;
+  avatar?: string;
+  branchId?: number | null;
+  branch?: { id: number; name: string } | null;
+  directionId?: number | null;
+  direction?: { id: number; name: string } | null;
+  createdAt?: string;
+}
+
+/** GET /users/:id/profile response — admin-facing detail page. */
+export interface UserProfile {
+  user: User;
+  roleData: {
+    // TEACHER
+    groupsCount?: number;
+    studentsCount?: number;
+    groups?: { id: number; name: string; status?: string; direction: string | null; studentsCount: number }[];
+    // STUDENT
+    studentId?: number;
+    cardId?: string;
+    points?: number;
+    group?: { id: number; name: string; direction: string | null } | null;
+    parent?: { id: number; fullName?: string; phone?: string } | null;
+    testStats?: { totalTests: number; avgScore: number };
+    attendanceStats?: { totalDays: number; presentCount: number; attendanceRate: number };
+    paymentStats?: { totalPaid: number; lastPaymentDate: string | null };
+    // PARENT
+    parentId?: number;
+    phone2?: string;
+    children?: { id: number; fullName: string | null; group: string | null; points?: number }[];
+  };
+  recentActivity: {
+    id: number;
+    method: string;
+    path: string;
+    action?: string;
+    statusCode?: number;
+    createdAt: string;
+  }[];
 }
 
 export interface DashboardStats {

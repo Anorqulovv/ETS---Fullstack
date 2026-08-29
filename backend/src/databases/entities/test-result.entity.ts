@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Test } from './test.entity';
 import { Student } from '../entities/student.entity'; 
 import { BaseEntity } from './Base.entity';
@@ -9,6 +9,7 @@ export class TestResult extends BaseEntity {
   @Column({ type: 'float' })
   score: number; 
 
+  @Index()
   @Column()
   testId: number;
 
@@ -16,6 +17,7 @@ export class TestResult extends BaseEntity {
   @JoinColumn({ name: 'testId' })
   test: Test;
 
+  @Index()
   @Column()
   studentId: number;
 

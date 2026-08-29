@@ -12,6 +12,13 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CryptoService } from 'src/infrastructure/helpers/Crypto';
 import { succesRes } from 'src/infrastructure/utils/succes-res';
 import { User } from 'src/databases/entities/user.entity';
+import { Group } from 'src/databases/entities/group.entity';
+import { Student } from 'src/databases/entities/student.entity';
+import { Parent } from 'src/databases/entities/parent.entity';
+import { Payment } from 'src/databases/entities/payment.entity';
+import { TestResult } from 'src/databases/entities/test-result.entity';
+import { Attendance } from 'src/databases/entities/attendance.entity';
+import { UserActivity } from 'src/databases/entities/user-activity.entity';
 import { UserRole } from 'src/common/enums/role.enum';
 import { envConfig } from 'src/common/config';
 import { ISucces, IResponsePagination } from 'src/infrastructure/utils/succes-interface';
@@ -22,6 +29,13 @@ export class UsersService
   implements OnModuleInit {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Group) private readonly groupRepo: Repository<Group>,
+    @InjectRepository(Student) private readonly studentRepo: Repository<Student>,
+    @InjectRepository(Parent) private readonly parentRepo: Repository<Parent>,
+    @InjectRepository(Payment) private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(TestResult) private readonly testResultRepo: Repository<TestResult>,
+    @InjectRepository(Attendance) private readonly attendanceRepo: Repository<Attendance>,
+    @InjectRepository(UserActivity) private readonly activityRepo: Repository<UserActivity>,
     private readonly crypto: CryptoService,
   ) {
     super(userRepo);
@@ -216,5 +230,143 @@ export class UsersService
       ]);
 
     return succesRes({ totalAdmins, totalTeachers, totalSupports, totalParents });
+  }
+
+  // ==================== PROFILE (admin uchun batafsil sahifa) ====================
+  /**
+   * Admin panelida bitta foydalanuvchi haqida to'liq ma'lumot — asosiy profil +
+   * roliga qarab tegishli statistika (o'qituvchi uchun guruhlar/o'quvchilar soni,
+   * o'quvchi uchun davomat/baholar/to'lovlar, ota-ona uchun farzandlar) + so'nggi
+   * harakatlar tarixi (user_activities). Bitta so'rovda hammasi qaytadi — frontend
+   * bir nechta alohida chaqiruv qilmasin.
+   */
+  async getUserProfile(id: number): Promise<ISucces> {
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: ['direction', 'branch'],
+    });
+    if (!user) throw new NotFoundException(`User with ID ${id} not found`);
+    const { password: _pw, ...safeUser } = user;
+
+    const [recentActivity, roleData] = await Promise.all([
+      this.activityRepo.find({
+        where: { userId: id },
+        order: { createdAt: 'DESC' },
+        take: 15,
+      }),
+      this.buildRoleData(user),
+    ]);
+
+    return succesRes({
+      user: safeUser,
+      roleData,
+      recentActivity,
+    });
+  }
+
+  private async buildRoleData(user: User): Promise<Record<string, unknown>> {
+    switch (user.role) {
+      case UserRole.TEACHER:
+        return this.buildTeacherData(user.id);
+      case UserRole.STUDENT:
+        return this.buildStudentData(user.id);
+      case UserRole.PARENT:
+        return this.buildParentData(user.id);
+      default:
+        // ADMIN/SUPPORT/MANAGER/MARKETING/SALES/FINANCE/HR/SUPERADMIN — bularda
+        // alohida domen ma'lumoti yo'q, faqat asosiy profil + activity yetarli.
+        return {};
+    }
+  }
+
+  private async buildTeacherData(teacherId: number): Promise<Record<string, unknown>> {
+    const groups = await this.groupRepo.find({
+      where: { teacherId },
+      relations: ['direction', 'students'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const studentsCount = groups.reduce((sum, g) => sum + (g.students?.length ?? 0), 0);
+
+    return {
+      groupsCount: groups.length,
+      studentsCount,
+      groups: groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        status: g.status,
+        direction: g.direction?.name ?? null,
+        studentsCount: g.students?.length ?? 0,
+      })),
+    };
+  }
+
+  private async buildStudentData(userId: number): Promise<Record<string, unknown>> {
+    const student = await this.studentRepo.findOne({
+      where: { userId },
+      relations: ['group', 'group.direction', 'parent', 'parent.user'],
+    });
+    if (!student) return {};
+
+    const [results, attendance, payments] = await Promise.all([
+      this.testResultRepo.find({ where: { studentId: student.id } }),
+      this.attendanceRepo.find({ where: { studentId: student.id } }),
+      this.paymentRepo.find({ where: { studentId: student.id }, order: { paidAt: 'DESC' } }),
+    ]);
+
+    const totalTests = results.length;
+    const avgScore =
+      totalTests > 0 ? Math.round(results.reduce((s, r) => s + r.score, 0) / totalTests) : 0;
+
+    const presentCount = attendance.filter((a) => a.isPresent).length;
+    const attendanceRate =
+      attendance.length > 0 ? Math.round((presentCount / attendance.length) * 100) : 0;
+
+    const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+    return {
+      studentId: student.id,
+      cardId: student.cardId,
+      points: student.points,
+      group: student.group
+        ? {
+            id: student.group.id,
+            name: student.group.name,
+            direction: student.group.direction?.name ?? null,
+          }
+        : null,
+      parent: student.parent
+        ? { id: student.parent.id, fullName: student.parent.user?.fullName, phone: student.parent.user?.phone }
+        : null,
+      testStats: { totalTests, avgScore },
+      attendanceStats: {
+        totalDays: attendance.length,
+        presentCount,
+        attendanceRate,
+      },
+      paymentStats: {
+        totalPaid,
+        lastPaymentDate: payments[0]?.paidAt ?? null,
+      },
+    };
+  }
+
+  private async buildParentData(userId: number): Promise<Record<string, unknown>> {
+    const parent = await this.parentRepo.findOne({
+      where: { userId },
+      relations: ['students', 'students.user', 'students.group'],
+    });
+    if (!parent) return {};
+
+    return {
+      parentId: parent.id,
+      phone2: parent.phone2,
+      children: (parent.students ?? []).map((s) => ({
+        id: s.id,
+        fullName: s.user?.fullName ?? null,
+        group: s.group?.name ?? null,
+        points: s.points,
+      })),
+    };
   }
 }

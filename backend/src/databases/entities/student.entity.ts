@@ -4,7 +4,8 @@ import {
   OneToOne, 
   ManyToOne, 
   OneToMany, 
-  JoinColumn 
+  JoinColumn,
+  Index
 } from 'typeorm';
 import { User } from './user.entity';
 import { Parent } from './parent.entity';
@@ -26,6 +27,7 @@ export class Student extends BaseEntity {
   @JoinColumn({ name: 'userId' })
   user: User;
 
+  @Index()
   @Column({ nullable: true })
   parentId?: number;
 
@@ -33,6 +35,7 @@ export class Student extends BaseEntity {
   @JoinColumn({ name: 'parentId' })
   parent: Parent;
 
+  @Index()
   @Column({ nullable: true })
   groupId?: number;
 

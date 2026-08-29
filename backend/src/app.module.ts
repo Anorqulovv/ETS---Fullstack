@@ -34,12 +34,15 @@ import { GamificationModule } from './modules/gamification/gamification.module';
 import { UsersModule } from './modules/users/users.module';
 import { SalaryModule } from './modules/salary/salary.module';
 import { HomeworkModule } from './modules/homework/homework.module';
+import { HealthModule } from './modules/health/health.module';
+import { StorageModule } from './infrastructure/storage/storage.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    StorageModule,
     // Global rate limiting — a generous default so normal app usage (a dashboard firing
     // several parallel requests, etc.) is never affected. Sensitive auth endpoints
     // (login, OTP, refresh) get their own much stricter limits via @Throttle() directly
@@ -97,6 +100,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     UsersModule,
     SalaryModule,
     HomeworkModule,
+    HealthModule,
   ],
   providers: [
     {

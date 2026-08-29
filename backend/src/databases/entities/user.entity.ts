@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { UserRole } from '../../common/enums/role.enum';
 import { Gender } from '../../common/enums/gender.enum';
 import { SalaryMode } from '../../common/enums/salaryMode.enum';
@@ -17,6 +17,7 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar' })
   password: string;
 
+  @Index()
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;
 
@@ -65,6 +66,7 @@ export class User extends BaseEntity {
   @JoinColumn({ name: 'branchId' })
   branch: Branch;
 
+  @Index()
   @Column({ nullable: true })
   branchId: number;
 

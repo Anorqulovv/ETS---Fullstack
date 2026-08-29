@@ -20,6 +20,7 @@ import { GradeHomeworkDto } from './dto/grade-homework.dto';
 import { succesRes } from 'src/infrastructure/utils/succes-res';
 import { ISucces } from 'src/infrastructure/utils/succes-interface';
 import { GamificationService } from '../gamification/gamification.service';
+import { StorageService } from 'src/infrastructure/storage/storage.service';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB (dekodlangan hajm)
 const FILE_RETENTION_DAYS = 15;
@@ -32,7 +33,15 @@ export class HomeworkService implements OnModuleInit {
     @InjectRepository(Student) private readonly studentRepo: Repository<Student>,
     @InjectRepository(Group) private readonly groupRepo: Repository<Group>,
     private readonly gamificationService: GamificationService,
+    private readonly storageService: StorageService,
   ) {}
+
+  // fileKey — S3 bucket ichidagi object yo'li, faqat purgeExpiredFiles/delete uchun
+  // kerak, frontend'ga hech qachon chiqmasligi kerak (maxfiy emas, lekin ichki detal).
+  private stripInternal(submission: HomeworkSubmission): Omit<HomeworkSubmission, 'fileKey'> {
+    const { fileKey, ...rest } = submission;
+    return rest;
+  }
 
   onModuleInit() {
     setInterval(() => {
@@ -145,6 +154,10 @@ export class HomeworkService implements OnModuleInit {
     }
 
     let fileSizeBytes: number | undefined;
+    let fileUrl: string | undefined;
+    let fileKey: string | undefined;
+    let fileDataForDb: string | undefined;
+
     if (dto.fileData) {
       const base64 = dto.fileData.split(',').pop() ?? dto.fileData;
       fileSizeBytes = Math.ceil((base64.length * 3) / 4);
@@ -152,6 +165,21 @@ export class HomeworkService implements OnModuleInit {
         throw new BadRequestException(
           `Fayl hajmi juda katta (maksimal ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))}MB)`,
         );
+      }
+
+      if (this.storageService.isConfigured()) {
+        // Production yo'li: fayl S3'ga yuklanadi, bazaga faqat URL yoziladi —
+        // katta base64 matn Postgres'ga tushmaydi.
+        const uploaded = await this.storageService.uploadBase64(
+          'homework',
+          dto.fileName ?? 'homework-file',
+          dto.fileData,
+        );
+        fileUrl = uploaded.url;
+        fileKey = uploaded.key;
+      } else {
+        // Dev fallback: S3 sozlanmagan bo'lsa, avvalgidek bazaga base64 saqlanadi.
+        fileDataForDb = dto.fileData;
       }
     }
 
@@ -175,13 +203,15 @@ export class HomeworkService implements OnModuleInit {
       isCurrent: true,
       textContent: dto.textContent,
       fileName: dto.fileData ? dto.fileName : undefined,
-      fileData: dto.fileData,
+      fileData: fileDataForDb,
+      fileUrl,
+      fileKey,
       fileSizeBytes,
       status: HomeworkSubmissionStatus.SUBMITTED,
       submittedAt: new Date(),
     });
     const saved = await this.submissionRepo.save(submission);
-    return succesRes(saved, 201);
+    return succesRes(this.stripInternal(saved), 201);
   }
 
   async resetSubmission(assignmentId: number, studentId: number, currentUser: any): Promise<ISucces> {
@@ -231,7 +261,7 @@ export class HomeworkService implements OnModuleInit {
 
     void this.gamificationService.awardForHomework(submission.studentId, submission.id, dto.score);
 
-    return succesRes(saved);
+    return succesRes(this.stripInternal(saved));
   }
 
   async getSubmissions(assignmentId: number, currentUser: any): Promise<ISucces> {
@@ -248,7 +278,7 @@ export class HomeworkService implements OnModuleInit {
       relations: ['student', 'student.user'],
       order: { submittedAt: 'DESC' },
     });
-    return succesRes(submissions);
+    return succesRes(submissions.map((s) => this.stripInternal(s)));
   }
 
   async getMySubmission(assignmentId: number, userId: number): Promise<ISucces> {
@@ -259,24 +289,42 @@ export class HomeworkService implements OnModuleInit {
       where: { assignmentId, studentId: student.id },
       order: { attempt: 'DESC' },
     });
-    return succesRes(submissions);
+    return succesRes(submissions.map((s) => this.stripInternal(s)));
   }
 
   async purgeExpiredFiles(): Promise<void> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - FILE_RETENTION_DAYS);
 
+    // S3'da saqlangan fayllarni avval bucket'dan o'chiramiz (aks holda fileKey
+    // bazadan o'chgach, ular bucket'da abadiy "yetim" bo'lib qolib, hisobni
+    // bekorga to'ldirib yotadi), so'ng bazadagi yozuvni tozalaymiz.
+    const expiredWithS3Files = await this.submissionRepo
+      .createQueryBuilder()
+      .where('"submittedAt" < :cutoff', { cutoff })
+      .andWhere('"fileExpired" = false')
+      .andWhere('"fileKey" IS NOT NULL')
+      .getMany();
+
+    for (const submission of expiredWithS3Files) {
+      if (submission.fileKey) {
+        await this.storageService.delete(submission.fileKey);
+      }
+    }
+
     await this.submissionRepo
       .createQueryBuilder()
       .update(HomeworkSubmission)
       .set({
         fileData: () => 'NULL',
+        fileUrl: () => 'NULL',
+        fileKey: () => 'NULL',
         fileName: () => 'NULL',
         fileExpired: true,
       })
       .where('"submittedAt" < :cutoff', { cutoff })
       .andWhere('"fileExpired" = false')
-      .andWhere('"fileData" IS NOT NULL')
+      .andWhere('("fileData" IS NOT NULL OR "fileUrl" IS NOT NULL)')
       .execute();
   }
 }
