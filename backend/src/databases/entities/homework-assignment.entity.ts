@@ -27,8 +27,10 @@ export class HomeworkAssignment extends BaseEntity {
   @JoinColumn({ name: 'createdById' })
   createdBy?: User;
 
-  @Column({ type: 'timestamptz', nullable: true })
-  deadline?: Date;
+  // Timezone konvertatsiyasi qilinmaydi -- ustoz kiritgan vaqt aynan shu ko'rinishda saqlanadi
+  // (masalan "2026-08-21T12:00"), UTC/local muammosining oldini olish uchun.
+  @Column({ type: 'varchar', nullable: true })
+  deadline?: string;
 
   @OneToMany(() => HomeworkSubmission, (s) => s.assignment)
   submissions: HomeworkSubmission[];

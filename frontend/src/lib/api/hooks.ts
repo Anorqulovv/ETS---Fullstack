@@ -34,6 +34,8 @@ import type {
   Teacher,
   Test,
   TestQuestion,
+  HomeworkAssignment,
+  HomeworkSubmission,
   User,
   CodingProblem,
   CodingSubmission,
@@ -66,6 +68,7 @@ const RESOURCES = {
   users: "/users",
   supportTeachers: "/supports",
   activity: "/activity", // SUPERADMIN-only (see ActivityController)
+  homework: "/homework",
 } as const;
 
 function createCrudHooks<T extends { id?: number | string }>(
@@ -1449,3 +1452,80 @@ export function useDashboard() {
 }
 
 export type { Paginated };
+
+export const homeworkQ = createCrudHooks<HomeworkAssignment>(
+  RESOURCES.homework,
+  "homework",
+  undefined,
+  undefined,
+  ["title", "description", "groupId", "deadline"],
+);
+
+/** POST /homework/submit -- STUDENT topshiradi. */
+export function useSubmitHomework(onDone?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { assignmentId: number; textContent?: string; fileName?: string; fileData?: string }) =>
+      apiRequest<HomeworkSubmission>({ url: `${RESOURCES.homework}/submit`, method: "POST", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["homework"] });
+      toast.success("Topshirildi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Topshirib bo'lmadi")),
+  });
+}
+
+/** GET /homework/:id/my-submission -- STUDENT o'zining urinishlari tarixi. */
+export function useMyHomeworkSubmission(assignmentId?: number) {
+  return useQuery({
+    queryKey: ["homework", assignmentId, "my-submission"],
+    queryFn: () =>
+      apiRequest<HomeworkSubmission[]>({ url: `${RESOURCES.homework}/${assignmentId}/my-submission`, method: "GET" }),
+    enabled: assignmentId != null,
+  });
+}
+
+/** GET /homework/:id/submissions -- ustoz/admin uchun barcha topshiriqlar. */
+export function useHomeworkSubmissions(assignmentId?: number) {
+  return useQuery({
+    queryKey: ["homework", assignmentId, "submissions"],
+    queryFn: () =>
+      apiRequest<HomeworkSubmission[]>({ url: `${RESOURCES.homework}/${assignmentId}/submissions`, method: "GET" }),
+    enabled: assignmentId != null,
+  });
+}
+
+/** PATCH /homework/submissions/:id/grade */
+export function useGradeHomework() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ submissionId, ...payload }: { submissionId: number; score: number; feedback?: string }) =>
+      apiRequest<HomeworkSubmission>({
+        url: `${RESOURCES.homework}/submissions/${submissionId}/grade`,
+        method: "PATCH",
+        data: payload,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["homework"] });
+      toast.success("Baholandi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Baholab bo'lmadi")),
+  });
+}
+
+/** DELETE /homework/:id/reset/:studentId -- o'quvchiga qayta topshirishga ruxsat berish. */
+export function useResetHomeworkSubmission() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ assignmentId, studentId }: { assignmentId: number; studentId: number }) =>
+      apiRequest<{ message: string }>({
+        url: `${RESOURCES.homework}/${assignmentId}/reset/${studentId}`,
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["homework"] });
+      toast.success("Qayta topshirishga ruxsat berildi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Failed")),
+  });
+}

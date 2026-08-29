@@ -407,3 +407,34 @@ export interface DashboardData {
   revenue: { month: string; revenue: number }[];
   activity: { id: number | string; who: string; action: string; at: string }[];
 }
+
+export type HomeworkSubmissionStatus = "SUBMITTED" | "GRADED";
+
+export interface HomeworkAssignment {
+  id: number;
+  title: string;
+  description?: string;
+  groupId: number;
+  deadline?: string;
+  createdAt?: string;
+  group?: { id: number; name: string };
+}
+
+export interface HomeworkSubmission {
+  id: number;
+  assignmentId: number;
+  studentId: number;
+  attempt: number;
+  isCurrent: boolean;
+  textContent?: string;
+  fileName?: string;
+  fileData?: string;
+  fileSizeBytes?: number;
+  fileExpired: boolean;
+  status: HomeworkSubmissionStatus;
+  score?: number;
+  feedback?: string;
+  gradedAt?: string;
+  submittedAt: string;
+  student?: { id: number; user?: { fullName?: string } };
+}

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateHomeworkDto {
   @ApiProperty({ example: "JS asoslari — 3-dars uyga vazifa" })
@@ -16,8 +16,8 @@ export class CreateHomeworkDto {
   @IsInt()
   groupId: number;
 
-  @ApiPropertyOptional({ example: '2026-08-25T18:00:00.000Z' })
+  @ApiPropertyOptional({ example: '2026-08-25T18:00' })
   @IsOptional()
-  @IsDateString()
+  @IsString()
   deadline?: string;
 }

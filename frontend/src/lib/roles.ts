@@ -27,6 +27,7 @@ export type NavKey =
   | "parents"
   | "attendance"
   | "tests"
+  | "homework"
   | "payments"
   | "notifications"
   | "users"
@@ -53,6 +54,7 @@ const ALL_KEYS: NavKey[] = [
   "parents",
   "attendance",
   "tests",
+  "homework",
   "payments",
   "notifications",
   "users",
@@ -83,6 +85,7 @@ export const ROLE_NAV: Record<Role, NavKey[]> = {
     "students",
     "attendance",
     "tests",
+    "homework",
     "gamification",
     "notifications",
     "profile",
@@ -92,10 +95,11 @@ export const ROLE_NAV: Record<Role, NavKey[]> = {
     "groups",
     "students",
     "attendance",
+    "homework",
     "notifications",
     "profile",
   ],
-  STUDENT: ["dashboard", "attendance", "tests", "payments", "gamification", "notifications", "profile"],
+  STUDENT: ["dashboard", "attendance", "tests", "homework", "payments", "gamification", "notifications", "profile"],
   PARENT: ["dashboard", "payments", "attendance", "notifications", "profile"],
   // Operational oversight: groups/teachers/students, no finances, no user/permission management.
   MANAGER: [
@@ -147,6 +151,7 @@ const MUTATE_ROLES_BY_NAV: Partial<Record<NavKey, Role[]>> = {
   attendance: ["SUPERADMIN", "ADMIN", "TEACHER"],
   payments: ["SUPERADMIN", "ADMIN", "SUPPORT", "SALES"],
   tests: ["SUPERADMIN", "ADMIN", "TEACHER"],
+  homework: ["SUPERADMIN", "ADMIN", "TEACHER", "SUPPORT"],
   // Only SUPERADMIN can create/edit/delete admin accounts — see AdminController in the backend
   // (@AccessRoles(SUPERADMIN) on POST/PATCH/DELETE /admins). Showing ADMIN an edit button here
   // that always 403s was the actual bug — this hides it for anyone but SUPERADMIN.

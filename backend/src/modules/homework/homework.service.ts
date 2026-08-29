@@ -55,7 +55,7 @@ export class HomeworkService implements OnModuleInit {
       description: dto.description,
       groupId: dto.groupId,
       createdById: currentUser.id,
-      deadline: dto.deadline ? new Date(dto.deadline) : undefined,
+      deadline: dto.deadline,
     });
     const saved = await this.assignmentRepo.save(assignment);
     return succesRes(saved, 201);
@@ -111,7 +111,7 @@ export class HomeworkService implements OnModuleInit {
 
     await this.assignmentRepo.update(id, {
       ...dto,
-      deadline: dto.deadline ? new Date(dto.deadline) : undefined,
+      deadline: dto.deadline,
     });
     const updated = await this.assignmentRepo.findOne({ where: { id } });
     return succesRes(updated!);
