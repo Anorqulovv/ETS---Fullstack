@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production=false
+RUN npm install --only=production=false
 
 COPY . .
 
@@ -17,7 +17,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 

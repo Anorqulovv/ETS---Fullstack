@@ -123,6 +123,12 @@ export class TestsController {
   }
 
 
+  @Get(':testId/my-review')
+  @AccessRoles(UserRole.STUDENT)
+  getMyTestReview(@Param('testId', ParseIntPipe) testId: number, @Req() req: any) {
+    return this.testsService.getMyTestReview(req.user.id, testId);
+  }
+
   @Get(':testId/student/:studentId/review')
   @AccessRoles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.TEACHER)
   getStudentTestReview(

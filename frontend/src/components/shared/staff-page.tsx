@@ -1,10 +1,13 @@
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
+import { Eye } from "lucide-react";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
 import { GenderSelect } from "@/components/shared/gender-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import type { NavKey } from "@/lib/roles";
 import type { User } from "@/lib/api/types";
 
@@ -40,7 +43,19 @@ export function StaffPage({
   const { t } = useTranslation();
 
   const columns: Column<User>[] = [
-    { key: "fullName", header: t("common.name"), cell: (r) => <span className="font-medium">{r.fullName}</span> },
+    {
+      key: "fullName",
+      header: t("common.name"),
+      cell: (r) => (
+        <Link
+          to="/users/$userId"
+          params={{ userId: String(r.id) }}
+          className="font-medium hover:underline"
+        >
+          {r.fullName}
+        </Link>
+      ),
+    },
     { key: "username", header: t("common.username"), cell: (r) => `@${r.username ?? "—"}` },
     { key: "phone", header: t("common.phone"), cell: (r) => r.phone ?? "—" },
   ];
@@ -55,6 +70,13 @@ export function StaffPage({
       useCreate={q.useCreate}
       useUpdate={q.useUpdate}
       useRemove={q.useRemove}
+      rowActions={(row) => (
+        <DropdownMenuItem asChild>
+          <Link to="/users/$userId" params={{ userId: String(row.id) }}>
+            <Eye className="mr-2 h-4 w-4" /> {t("common.viewProfile")}
+          </Link>
+        </DropdownMenuItem>
+      )}
       createTitle={t("common.create")}
       validate={(row) => (!row.gender ? t("common.genderRequired") : null)}
       renderForm={(row, onChange) => (

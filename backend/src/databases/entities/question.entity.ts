@@ -11,6 +11,12 @@ export class Question {
   @Column()
   text: string;
 
+  @Column({ type: 'text', nullable: true })
+  textEn?: string;
+
+  @Column({ type: 'text', nullable: true })
+  textRu?: string;
+
   // === TO'G'RI YOZILISHI ===
   @ManyToOne(() => Test, (test) => test.questions, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'testId' })

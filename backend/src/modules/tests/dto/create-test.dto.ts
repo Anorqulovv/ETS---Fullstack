@@ -10,6 +10,14 @@ class CreateChoiceDto {
   @IsNotEmpty()
   text: string;
 
+  @IsOptional()
+  @IsString()
+  textEn?: string;
+
+  @IsOptional()
+  @IsString()
+  textRu?: string;
+
   @IsBoolean()
   isCorrect: boolean;
 }
@@ -18,6 +26,14 @@ class CreateQuestionDto {
   @IsString()
   @IsNotEmpty()
   text: string;
+
+  @IsOptional()
+  @IsString()
+  textEn?: string;
+
+  @IsOptional()
+  @IsString()
+  textRu?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

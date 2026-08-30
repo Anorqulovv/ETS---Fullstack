@@ -7,6 +7,12 @@ export class Choice extends BaseEntity {
   @Column({ type: 'text' })
   text: string;
 
+  @Column({ type: 'text', nullable: true })
+  textEn?: string;
+
+  @Column({ type: 'text', nullable: true })
+  textRu?: string;
+
   @Column({ type: 'boolean', default: false })
   isCorrect: boolean;
 

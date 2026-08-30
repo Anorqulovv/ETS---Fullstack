@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { CrudPage } from "@/components/shared/crud-page";
@@ -59,7 +59,15 @@ function SupportTeachersPage() {
       header: t("common.name"),
       sortable: true,
       sortValue: (r) => r.fullName ?? "",
-      cell: (r) => <span className="font-medium">{r.fullName}</span>,
+      cell: (r) => (
+        <Link
+          to="/users/$userId"
+          params={{ userId: String(r.id) }}
+          className="font-medium hover:underline"
+        >
+          {r.fullName}
+        </Link>
+      ),
     },
     {
       key: "username",

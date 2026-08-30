@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, LessThanOrEqual, IsNull } from 'typeorm';
+import { Repository, In, LessThanOrEqual, IsNull, Between } from 'typeorm';
 
 import { Test } from '../../databases/entities/test.entity';
 import { TestResult } from '../../databases/entities/test-result.entity';
@@ -91,9 +91,28 @@ export class TestsService implements OnModuleInit {
    *    aniq oyna yo'q) bo'lsa — boshlagan vaqtidan + `durationMinutes` hisoblanadi
    *    (klassik "N daqiqalik test" rejimi).
    */
-  private computeTestDeadline(test: Test, startedAt: Date, _isRetry: boolean): Date | null {
+  private computeTestDeadline(test: Test, startedAt: Date, isRetry: boolean): Date | null {
     const endsAt = this.parseDateTime(test.endsAt);
-    if (endsAt) return endsAt;
+    if (endsAt) {
+      // Qayta ishlashga ruxsat berilgan urinishda, agar testning umumiy tugash vaqti
+      // (endsAt) allaqachon o'tib ketgan bo'lsa -- bu odatiy holat, chunki o'quvchi birinchi
+      // marta ishlab bo'lgach test oynasi yopilgan bo'ladi -- eski endsAt'ni ishlatish
+      // o'quvchiga 0 soniya vaqt qoldiradi (darhol avtomatik topshirilib ketadi). Shu sabab
+      // bunday holatda durationMinutes (yoki bo'lmasa testning original oyna uzunligi)
+      // asosida, YANGI boshlangan vaqtdan boshlab deadline hisoblanadi.
+      if (isRetry && endsAt <= startedAt) {
+        if (test.durationMinutes) {
+          return new Date(startedAt.getTime() + test.durationMinutes * 60 * 1000);
+        }
+        const startsAt = this.parseDateTime(test.startsAt);
+        if (startsAt) {
+          const windowMs = endsAt.getTime() - startsAt.getTime();
+          if (windowMs > 0) return new Date(startedAt.getTime() + windowMs);
+        }
+        return new Date(startedAt.getTime() + 30 * 60 * 1000);
+      }
+      return endsAt;
+    }
     return test.durationMinutes
       ? new Date(startedAt.getTime() + test.durationMinutes * 60 * 1000)
       : null;
@@ -300,16 +319,18 @@ Savollar soni: ${count}
 
 JSON format:
 {
-  "title": "test nomi",
+  "title": "test nomi (o'zbekcha)",
   "type": "${dto.type}",
   "questions": [
     {
-      "text": "savol matni",
+      "text": "savol matni (o'zbekcha)",
+      "textEn": "savolning inglizcha tarjimasi",
+      "textRu": "savolning ruscha tarjimasi",
       "choices": [
-        { "text": "variant A", "isCorrect": true },
-        { "text": "variant B", "isCorrect": false },
-        { "text": "variant C", "isCorrect": false },
-        { "text": "variant D", "isCorrect": false }
+        { "text": "variant A (o'zbekcha)", "textEn": "inglizcha", "textRu": "ruscha", "isCorrect": true },
+        { "text": "variant B (o'zbekcha)", "textEn": "inglizcha", "textRu": "ruscha", "isCorrect": false },
+        { "text": "variant C (o'zbekcha)", "textEn": "inglizcha", "textRu": "ruscha", "isCorrect": false },
+        { "text": "variant D (o'zbekcha)", "textEn": "inglizcha", "textRu": "ruscha", "isCorrect": false }
       ]
     }
   ]
@@ -318,7 +339,9 @@ JSON format:
 Talablar:
 - Har savolda kamida 4 ta variant bo'lsin.
 - Faqat 1 ta to'g'ri javob bo'lsin.
-- Savollar o'zbek tilida bo'lsin.
+- Har bir savol va variant UCH TILDA (o'zbek, ingliz, rus) berilsin -- text/textEn/textRu barchasi to'ldirilishi SHART, hech qachon bo'sh qoldirilmasin.
+- Tarjima aniq va tabiiy bo'lsin -- so'zma-so'z emas, o'sha tilda tabiiy eshitiladigan tarzda.
+- MUHIM: agar savol matnida atama, o'zgaruvchi nomi, funksiya nomi, kod parchasi yoki formula bo'lsa (masalan dasturlash yoki matematika testlarida), ULARNI TARJIMA QILMA -- aynan asl holicha qoldir barcha 3 tilda.
 - Javob JSONdan boshqa hech narsa bo'lmasin.
 `;
 
@@ -374,6 +397,8 @@ Talablar:
           .slice(0, 6)
           .map((c: any) => ({
             text: String(c.text),
+            textEn: c.textEn ? String(c.textEn) : undefined,
+            textRu: c.textRu ? String(c.textRu) : undefined,
             isCorrect: Boolean(c.isCorrect),
           }));
 
@@ -387,6 +412,8 @@ Talablar:
 
         return {
           text: String(q.text),
+          textEn: q.textEn ? String(q.textEn) : undefined,
+          textRu: q.textRu ? String(q.textRu) : undefined,
           choices,
         };
       });
@@ -884,11 +911,49 @@ Talablar:
       }
       // Umumiy testlar studentga ko'rsatilmaydi
 
-      const data = await this.testRepo.find({
-        where: conditions,
-        order: { id: 'DESC' },
-        relations: ['direction', 'group'],
-      });
+      const activeTests = conditions.length
+        ? await this.testRepo.find({ where: conditions, order: { id: 'DESC' }, relations: ['direction', 'group'] })
+        : [];
+
+      // Test vaqti (endsAt) tugagandan keyin ham 1 soat davomida ro'yxatda qoladi -- lekin
+      // FAQAT shu o'quvchi bu testni ishlagan bo'lsa (natija/javoblarini ko'rish uchun).
+      // 1 soatdan keyin ro'yxatdan yo'qoladi (ma'lumot o'chmaydi, faqat ko'rsatilmaydi --
+      // getMyTestReview'da ham xuddi shu vaqt oynasi tekshiriladi).
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const recentConditions: any[] = [];
+      if (student.groupId) {
+        recentConditions.push({ groupId: student.groupId, isDeleted: false, endsAt: Between(oneHourAgo, now) });
+      }
+      if (student.group?.directionId) {
+        recentConditions.push({
+          directionId: student.group.directionId,
+          groupId: null,
+          isDeleted: false,
+          endsAt: Between(oneHourAgo, now),
+        });
+      }
+
+      let reviewableTests: any[] = [];
+      if (recentConditions.length) {
+        const recentlyEnded = await this.testRepo.find({
+          where: recentConditions,
+          order: { id: 'DESC' },
+          relations: ['direction', 'group'],
+        });
+        if (recentlyEnded.length) {
+          const testIds = recentlyEnded.map((t) => t.id);
+          const myResults = await this.resultRepo.find({
+            where: { studentId: student.id, testId: In(testIds) },
+          });
+          const attemptedIds = new Set(myResults.map((r) => r.testId));
+          reviewableTests = recentlyEnded
+            .filter((t) => attemptedIds.has(t.id))
+            .map((t) => ({ ...t, reviewOnly: true }));
+        }
+      }
+
+      const data = [...activeTests, ...reviewableTests];
 
       return succesRes(await this.attachQuestionsCount(data));
     }
@@ -1134,6 +1199,70 @@ Talablar:
 
   // ==================== O'QUVCHI NATIJALAR TARIXI ====================
 
+  private async buildAttemptsForStudent(test: Test, studentId: number) {
+    const results = await this.resultRepo.find({
+      where: { testId: test.id, studentId },
+      order: { attempt: 'ASC' },
+    });
+
+    const problems = await this.problemRepo.find({ where: { testId: test.id }, order: { id: 'ASC' } });
+    const problemIds = problems.map((p) => p.id);
+    const submissions =
+      problemIds.length > 0
+        ? await this.submissionRepo.find({
+            where: { studentId, problemId: In(problemIds) },
+            order: { createdAt: 'ASC' },
+          })
+        : [];
+
+    return results.map((result) => {
+      const answerMap = (result.answers ?? {}) as Record<string, number>;
+
+      const questionReviews = (test.questions ?? []).map((question) => {
+        const selectedChoiceId = Number(answerMap[String(question.id)] ?? answerMap[question.id as any]);
+        const selectedChoice = question.choices?.find((choice) => Number(choice.id) === selectedChoiceId) ?? null;
+        const correctChoice = question.choices?.find((choice) => choice.isCorrect) ?? null;
+
+        return {
+          questionId: question.id,
+          questionText: question.text,
+          selectedChoiceId: selectedChoice?.id ?? null,
+          selectedChoiceText: selectedChoice?.text ?? null,
+          correctChoiceId: correctChoice?.id ?? null,
+          correctChoiceText: correctChoice?.text ?? null,
+          isCorrect: Boolean(selectedChoice && correctChoice && selectedChoice.id === correctChoice.id),
+        };
+      });
+
+      return {
+        resultId: result.id,
+        score: result.score,
+        attempt: result.attempt,
+        isCurrent: result.isCurrent,
+        createdAt: result.createdAt,
+        questions: questionReviews,
+        wrongQuestions: questionReviews.filter((q) => !q.isCorrect),
+        problemsScore: result.problemsScore ?? null,
+        problemsChecked: result.problemsChecked ?? false,
+        problems: problems.map((problem) => {
+          const submission = submissions.find(
+            (s) => s.problemId === problem.id && s.testResultId === result.id,
+          );
+          return {
+            problemId: problem.id,
+            title: problem.title,
+            difficulty: problem.difficulty,
+            code: submission?.code ?? null,
+            language: submission?.language ?? null,
+            status: submission?.status ?? 'NOT_SUBMITTED',
+            aiScore: submission?.aiScore ?? null,
+            aiFeedback: submission?.aiFeedback ?? null,
+          };
+        }),
+      };
+    });
+  }
+
   async getStudentTestReview(testId: number, studentId: number, currentUser?: any): Promise<ISucces> {
     const student = await this.studentRepo.findOne({
       where: { id: studentId },
@@ -1168,70 +1297,55 @@ Talablar:
       throw new NotFoundException('Test topilmadi');
     }
 
-    const results = await this.resultRepo.find({
-      where: { testId, studentId },
-      order: { attempt: 'ASC' },
+    const attempts = await this.buildAttemptsForStudent(test, student.id);
+
+    return succesRes({
+      testId,
+      testTitle: test.title,
+      studentId: student.id,
+      studentName: student.user?.fullName,
+      attempts,
     });
+  }
 
-    // Masalalar (agar testga biriktirilgan bo'lsa) — har bir urinish (attempt) uchun
-    // shu urinishga tegishli submission'lar bilan bog'lab beriladi.
-    const problems = await this.problemRepo.find({ where: { testId }, order: { id: 'ASC' } });
-    const problemIds = problems.map((p) => p.id);
-    const submissions =
-      problemIds.length > 0
-        ? await this.submissionRepo.find({
-            where: { studentId, problemId: In(problemIds) },
-            order: { createdAt: 'ASC' },
-          })
-        : [];
-
-    const attempts = results.map((result) => {
-      const answerMap = (result.answers ?? {}) as Record<string, number>;
-
-      const questionReviews = (test.questions ?? []).map((question) => {
-        const selectedChoiceId = Number(answerMap[String(question.id)] ?? answerMap[question.id as any]);
-        const selectedChoice = question.choices?.find((choice) => Number(choice.id) === selectedChoiceId) ?? null;
-        const correctChoice = question.choices?.find((choice) => choice.isCorrect) ?? null;
-
-        return {
-          questionId: question.id,
-          questionText: question.text,
-          selectedChoiceId: selectedChoice?.id ?? null,
-          selectedChoiceText: selectedChoice?.text ?? null,
-          correctChoiceId: correctChoice?.id ?? null,
-          correctChoiceText: correctChoice?.text ?? null,
-          isCorrect: Boolean(selectedChoice && correctChoice && selectedChoice.id === correctChoice.id),
-        };
-      });
-
-      return {
-        resultId: result.id,
-        score: result.score,
-        attempt: result.attempt,
-        isCurrent: result.isCurrent,
-        createdAt: result.createdAt,
-        questions: questionReviews,
-        wrongQuestions: questionReviews.filter((q) => !q.isCorrect),
-        // Masalalar — faqat shu urinish (testResultId) doirasida topshirilganlari
-        problemsScore: result.problemsScore ?? null,
-        problemsChecked: result.problemsChecked ?? false,
-        problems: problems.map((problem) => {
-          const submission = submissions.find(
-            (s) => s.problemId === problem.id && s.testResultId === result.id,
-          );
-          return {
-            problemId: problem.id,
-            title: problem.title,
-            difficulty: problem.difficulty,
-            code: submission?.code ?? null,
-            language: submission?.language ?? null,
-            status: submission?.status ?? 'NOT_SUBMITTED',
-            aiScore: submission?.aiScore ?? null,
-            aiFeedback: submission?.aiFeedback ?? null,
-          };
-        }),
-      };
+  // ==================== O'QUVCHI O'ZINING NATIJASINI KO'RISH (test tugaganidan keyin) ====================
+  /**
+   * O'quvchi o'zining natijasi, javoblari va to'g'ri javoblarni ko'rishi uchun. Faqat quyidagi
+   * shartlar bajarilganda ruxsat beriladi:
+   *  - o'quvchi bu test bo'yicha kamida bitta urinishga ega
+   *  - testning endsAt vaqtidan keyin 1 soatdan ko'p vaqt o'tmagan (endsAt bo'lmasa cheklovsiz)
+   * 1 soatdan keyin ma'lumot bazada saqlanib qoladi, lekin bu orqali ko'rsatilmaydi -- shu
+   * tarzda ko'chirish/screenshot qilish imkoniyati vaqt bo'yicha cheklanadi.
+   */
+  async getMyTestReview(userId: number, testId: number): Promise<ISucces> {
+    const student = await this.studentRepo.findOne({
+      where: { userId },
+      relations: ['user'],
     });
+    if (!student) throw new NotFoundException("O'quvchi topilmadi");
+
+    const test = await this.testRepo.findOne({
+      where: { id: testId },
+      relations: { questions: { choices: true } },
+    });
+    if (!test) throw new NotFoundException('Test topilmadi');
+
+    const endsAt = this.parseDateTime(test.endsAt);
+    if (endsAt) {
+      const reviewDeadline = new Date(endsAt.getTime() + 60 * 60 * 1000);
+      if (new Date() > reviewDeadline) {
+        throw new ForbiddenException(
+          "Bu testning natijalarini ko'rish muddati tugagan (test tugaganidan 1 soat o'tgan)",
+        );
+      }
+    }
+
+    const hasAttempt = await this.resultRepo.count({ where: { testId, studentId: student.id } });
+    if (!hasAttempt) {
+      throw new ForbiddenException('Siz bu testni hali ishlamagansiz');
+    }
+
+    const attempts = await this.buildAttemptsForStudent(test, student.id);
 
     return succesRes({
       testId,

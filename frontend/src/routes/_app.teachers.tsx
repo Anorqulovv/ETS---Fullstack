@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { CrudPage } from "@/components/shared/crud-page";
@@ -119,7 +119,13 @@ function TeachersPage() {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <div className="truncate font-medium">{r.fullName}</div>
+            <Link
+              to="/users/$userId"
+              params={{ userId: String(r.id) }}
+              className="truncate font-medium hover:underline"
+            >
+              {r.fullName}
+            </Link>
             <div className="truncate text-xs text-muted-foreground">@{r.username}</div>
           </div>
         </div>

@@ -421,7 +421,14 @@ function sanitizeTestQuestions(questions?: TestQuestion[]) {
   if (!questions) return questions;
   return questions.map((q) => ({
     text: q.text,
-    choices: q.choices.map((c) => ({ text: c.text, isCorrect: !!c.isCorrect })),
+    textEn: q.textEn || undefined,
+    textRu: q.textRu || undefined,
+    choices: q.choices.map((c) => ({
+      text: c.text,
+      textEn: c.textEn || undefined,
+      textRu: c.textRu || undefined,
+      isCorrect: !!c.isCorrect,
+    })),
   }));
 }
 
@@ -552,6 +559,17 @@ export interface TestReview {
 }
 
 /** GET /tests/:testId/student/:studentId/review — per-question right/wrong breakdown, every attempt. */
+/** GET /tests/:testId/my-review -- STUDENT o'zining natijasi/javoblarini test tugagandan keyin
+ * (1 soat ichida) ko'radi. */
+export function useMyTestReview(testId: number | null) {
+  return useQuery({
+    queryKey: ["tests", "my-review", testId],
+    queryFn: () =>
+      apiRequest<TestReview>({ url: `${RESOURCES.tests}/${testId}/my-review`, method: "GET" }),
+    enabled: testId != null,
+  });
+}
+
 export function useTestReview(testId: number | null, studentId: number | null) {
   return useQuery({
     queryKey: ["tests", "review", testId, studentId],

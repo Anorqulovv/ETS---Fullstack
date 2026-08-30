@@ -54,6 +54,14 @@ export const Route = createFileRoute("/take-test/$testId")({
 });
 
 type Phase = "intro" | "loading" | "active" | "violated" | "submitted" | "error";
+type TestLanguage = "uz" | "en" | "ru";
+
+/** Tanlangan tilga mos matnni qaytaradi -- tarjima yo'q bo'lsa o'zbekchaga tushadi. */
+function pickLang(uz: string, en: string | undefined, ru: string | undefined, lang: TestLanguage): string {
+  if (lang === "en") return en || uz;
+  if (lang === "ru") return ru || uz;
+  return uz;
+}
 
 const VIOLATION_LABEL_KEYS: Record<string, string> = {
   TAB_HIDDEN: "pages.takeTest.violationTabHidden",
@@ -88,6 +96,7 @@ function TakeTestPage() {
   const violationMutation = useMarkViolation();
 
   const [phase, setPhase] = useState<Phase>("intro");
+  const [language, setLanguage] = useState<TestLanguage>("uz");
   const [startError, setStartError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
@@ -289,6 +298,8 @@ function TakeTestPage() {
           minScore={test?.minScore}
           onStart={handleStart}
           onCancel={() => void navigate({ to: "/tests" })}
+          language={language}
+          onLanguageChange={setLanguage}
         />
       ) : null}
 
@@ -313,7 +324,7 @@ function TakeTestPage() {
             {(test.questions ?? []).map((q, qIdx) => (
               <div key={q.id ?? qIdx} className="rounded-xl border bg-card p-4 shadow-soft">
                 <p className="mb-3 font-medium">
-                  {qIdx + 1}. {q.text}
+                  {qIdx + 1}. {pickLang(q.text, q.textEn, q.textRu, language)}
                 </p>
                 <RadioGroup
                   value={q.id != null ? String(answers[q.id] ?? "") : undefined}
@@ -329,7 +340,7 @@ function TakeTestPage() {
                       className="flex cursor-pointer items-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent"
                     >
                       <RadioGroupItem value={String(c.id ?? cIdx)} />
-                      {c.text}
+                      {pickLang(c.text, c.textEn, c.textRu, language)}
                     </label>
                   ))}
                 </RadioGroup>
@@ -419,6 +430,8 @@ function IntroScreen({
   minScore,
   onStart,
   onCancel,
+  language,
+  onLanguageChange,
 }: {
   loading: boolean;
   error: boolean;
@@ -428,7 +441,14 @@ function IntroScreen({
   minScore?: number;
   onStart: () => void;
   onCancel: () => void;
+  language: TestLanguage;
+  onLanguageChange: (lang: TestLanguage) => void;
 }) {
+  const LANG_OPTIONS: { value: TestLanguage; label: string }[] = [
+    { value: "uz", label: "O'zbekcha" },
+    { value: "en", label: "English" },
+    { value: "ru", label: "Русский" },
+  ];
   const { t } = useTranslation();
   return (
     <div className="flex flex-1 items-center justify-center px-4">
@@ -460,6 +480,26 @@ function IntroScreen({
               <p>• Boshqa varaq/oynaga o'tish, nusxa olish/qo'yish taqiqlanadi.</p>
               <p>• Bu qoidalar buzilsa, natijangiz avtomatik 0 ball bo'ladi.</p>
               <p>• Test to'liq ekranda ochiladi — chiqmang.</p>
+            </div>
+
+            <div className="mt-4 grid gap-1.5 text-left">
+              <span className="text-xs font-medium text-muted-foreground">Test tili</span>
+              <div className="flex gap-2">
+                {LANG_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onLanguageChange(opt.value)}
+                    className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${
+                      language === opt.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="mt-5 flex gap-2">

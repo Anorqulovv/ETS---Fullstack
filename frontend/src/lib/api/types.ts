@@ -241,6 +241,8 @@ export interface TestChoice {
 export interface TestQuestion {
   id?: number;
   text: string;
+  textEn?: string;
+  textRu?: string;
   choices: TestChoice[];
 }
 
@@ -325,6 +327,8 @@ export interface Test {
   results?: TestResultItem[];
   direction?: { id: number; name: string };
   group?: { id: number; name: string };
+  /** Test tugaganidan keyingi 1 soatlik oynada -- faqat ko'rish uchun, qayta ishlab bo'lmaydi. */
+  reviewOnly?: boolean;
   /** Ixtiyoriy — ustoz belgilagan masalalar soni. 0/undefined bo'lsa testda masala yo'q. */
   problemCount?: number;
   problemDifficultyMix?: Record<string, number>;

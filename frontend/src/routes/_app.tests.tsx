@@ -39,6 +39,7 @@ import {
   useResetTestAttempt,
   useTest,
   useTestReview,
+  useMyTestReview,
   useUpdateTest,
 } from "@/lib/api/hooks";
 import type { CodingProblem, Test, TestQuestion, TestStatus, TestType } from "@/lib/api/types";
@@ -1091,6 +1092,8 @@ function StudentTestCard({ test: listTest }: { test: Test }) {
         ? "finished"
         : "not_started";
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+
   return (
     <Card className="shadow-soft">
       <CardHeader className="pb-3">
@@ -1118,9 +1121,16 @@ function StudentTestCard({ test: listTest }: { test: Test }) {
         </div>
 
         {status === "finished" ? (
-          <Button className="w-full" variant="secondary" disabled>
-            Test topshirilgan
-          </Button>
+          <>
+            <Button className="w-full" variant="secondary" onClick={() => setReviewOpen(true)}>
+              Natijani ko'rish
+            </Button>
+            <StudentTestReviewDialog
+              testId={listTest.id}
+              open={reviewOpen}
+              onOpenChange={setReviewOpen}
+            />
+          </>
         ) : (
           <Button asChild className="w-full">
             <Link to="/take-test/$testId" params={{ testId: String(listTest.id) }}>
@@ -1131,5 +1141,73 @@ function StudentTestCard({ test: listTest }: { test: Test }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** O'quvchining o'zi -- test tugagandan keyin (1 soat ichida) natijasi va javoblarini ko'radi. */
+function StudentTestReviewDialog({
+  testId,
+  open,
+  onOpenChange,
+}: {
+  testId: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: review, isLoading, isError, error } = useMyTestReview(open ? testId : null);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{review?.testTitle ?? "Natija"}</DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
+        ) : isError ? (
+          <p className="text-sm text-muted-foreground">
+            {(error as any)?.response?.data?.message ?? "Natijalarni ko'rish muddati tugagan"}
+          </p>
+        ) : !review?.attempts?.length ? (
+          <p className="text-sm text-muted-foreground">Urinish topilmadi.</p>
+        ) : (
+          <div className="space-y-6">
+            {review.attempts.map((attempt) => (
+              <div key={attempt.resultId} className={`space-y-2 ${!attempt.isCurrent ? "opacity-50" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {attempt.attempt}-urinish{attempt.isCurrent ? " (joriy)" : " (eski)"}
+                  </span>
+                  <Badge variant="secondary">{attempt.score}/100</Badge>
+                </div>
+                <div className="space-y-2">
+                  {attempt.questions.map((q, qIdx) => (
+                    <div
+                      key={q.questionId}
+                      className={`rounded-md border p-2.5 text-sm ${
+                        q.isCorrect ? "border-success/40 bg-success/5" : "border-destructive/40 bg-destructive/5"
+                      }`}
+                    >
+                      <p className="font-medium">
+                        {qIdx + 1}. {q.questionText}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Javobingiz: {q.selectedChoiceText ?? "javob berilmagan"}
+                      </p>
+                      {!q.isCorrect ? (
+                        <p className="mt-0.5 text-xs text-success">
+                          To'g'ri javob: {q.correctChoiceText ?? "—"}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

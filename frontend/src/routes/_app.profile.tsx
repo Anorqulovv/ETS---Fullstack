@@ -240,13 +240,6 @@ function ProfilePage() {
                     autoComplete="new-password"
                     aria-invalid={!isNewPasswordStrong}
                   />
-                  <p
-                    className={`text-[11px] ${
-                      newPassword && !isNewPasswordStrong ? "text-destructive" : "text-muted-foreground"
-                    }`}
-                  >
-                    Kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)
-                  </p>
                 </div>
                 <div className="grid gap-1.5">
                   <Label>{t("pages.profile.confirmPassword")}</Label>
@@ -258,6 +251,13 @@ function ProfilePage() {
                   />
                 </div>
               </div>
+              <p
+                className={`text-[11px] ${
+                  newPassword && !isNewPasswordStrong ? "text-destructive" : "text-muted-foreground"
+                }`}
+              >
+                Kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)
+              </p>
             </div>
 
             <div className="flex justify-end">
