@@ -391,7 +391,9 @@
       "unpaidLabel": "Не оплачено",
       "paymentsCount": "Количество платежей",
       "paymentStatus": "Статус оплаты",
-      "opsSubtitle": "Операционные показатели"
+      "opsSubtitle": "Операционные показатели",
+      "debt": "Задолженность",
+      "assignedTests": "Назначенные вам тесты"
     },
     "takeTest": {
       "rulesTitle": "Внимание — правила теста:",
@@ -474,5 +476,12 @@
     "paidAt": "Дата оплаты",
     "totalRevenue": "Общий доход",
     "totalPayments": "Кол-во платежей"
+  },
+  "gamification": {
+    "attendance": "За посещение занятия",
+    "testFullScore": "1-я попытка — полный балл",
+    "testPartial": "Попытка {{attempt}} — {{percent}}%",
+    "testNoPoints": "Попытка {{attempt}} — баллы не начисляются",
+    "homeworkGraded": "Домашнее задание оценено"
   }
 }

@@ -26,6 +26,7 @@ import {
   useDeleteShopItem,
   useLeaderboard,
   useMyPoints,
+  formatPointsLogNote,
   usePurchaseShopItem,
   useShopItems,
 } from "@/lib/api/hooks";
@@ -288,8 +289,8 @@ function GamificationPage() {
                       <span className="font-medium">
                         {log.source === "ATTENDANCE" ? t("nav.attendance") : t("pages.tests.title")}
                       </span>
-                      {log.note ? (
-                        <span className="ml-2 text-muted-foreground">{log.note}</span>
+                      {formatPointsLogNote(log, t) ? (
+                        <span className="ml-2 text-muted-foreground">{formatPointsLogNote(log, t)}</span>
                       ) : null}
                     </div>
                     <span className={"tabular-nums " + (log.amount >= 0 ? "text-success" : "text-destructive")}>

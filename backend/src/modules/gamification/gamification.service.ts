@@ -43,7 +43,14 @@ export class GamificationService {
   async awardForAttendance(studentId: number, attendanceId: number, isPresent: boolean): Promise<void> {
     if (!isPresent) return;
     try {
-      await this.addPoints(studentId, PointsSource.ATTENDANCE, ATTENDANCE_POINTS, attendanceId, 'Darsga qatnashgani uchun');
+      await this.addPoints(
+        studentId,
+        PointsSource.ATTENDANCE,
+        ATTENDANCE_POINTS,
+        attendanceId,
+        'Darsga qatnashgani uchun',
+        'gamification.attendance',
+      );
     } catch (e) {
       this.logger.error(`awardForAttendance failed for student ${studentId}: ${e}`);
     }
@@ -57,13 +64,21 @@ export class GamificationService {
     try {
       const multiplier = testMultiplier(attempt);
       const points = Math.round(score * multiplier);
+      const percent = Math.round(multiplier * 100);
       const note =
         multiplier === 1
           ? "1-urinish — to'liq ball"
           : multiplier > 0
-            ? `${attempt}-urinish — ${Math.round(multiplier * 100)}%`
+            ? `${attempt}-urinish — ${percent}%`
             : `${attempt}-urinish — ball berilmaydi`;
-      await this.addPoints(studentId, PointsSource.TEST, points, testResultId, note);
+      const noteKey =
+        multiplier === 1
+          ? 'gamification.testFullScore'
+          : multiplier > 0
+            ? 'gamification.testPartial'
+            : 'gamification.testNoPoints';
+      const noteParams = multiplier === 1 ? undefined : { attempt, percent };
+      await this.addPoints(studentId, PointsSource.TEST, points, testResultId, note, noteKey, noteParams);
     } catch (e) {
       this.logger.error(`awardForTest failed for student ${studentId}: ${e}`);
     }
@@ -76,7 +91,14 @@ export class GamificationService {
   async awardForHomework(studentId: number, submissionId: number, score: number): Promise<void> {
     try {
       const points = Math.round(score);
-      await this.addPoints(studentId, PointsSource.HOMEWORK, points, submissionId, 'Uyga vazifa baholandi');
+      await this.addPoints(
+        studentId,
+        PointsSource.HOMEWORK,
+        points,
+        submissionId,
+        'Uyga vazifa baholandi',
+        'gamification.homeworkGraded',
+      );
     } catch (e) {
       this.logger.error(`awardForHomework failed for student ${studentId}: ${e}`);
     }
@@ -88,8 +110,12 @@ export class GamificationService {
     amount: number,
     refId: number | null,
     note: string,
+    noteKey?: string,
+    noteParams?: Record<string, unknown>,
   ): Promise<void> {
-    await this.logRepo.save(this.logRepo.create({ studentId, source, amount, refId: refId ?? undefined, note }));
+    await this.logRepo.save(
+      this.logRepo.create({ studentId, source, amount, refId: refId ?? undefined, note, noteKey, noteParams }),
+    );
     if (amount !== 0) {
       await this.studentRepo.increment({ id: studentId }, 'points', amount);
     }

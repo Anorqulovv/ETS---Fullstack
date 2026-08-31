@@ -391,7 +391,9 @@
       "unpaidLabel": "Unpaid",
       "paymentsCount": "Number of payments",
       "paymentStatus": "Payment status",
-      "opsSubtitle": "Operational metrics"
+      "opsSubtitle": "Operational metrics",
+      "debt": "Debt",
+      "assignedTests": "Tests assigned to you"
     },
     "takeTest": {
       "rulesTitle": "Attention — test rules:",
@@ -474,5 +476,12 @@
     "paidAt": "Paid at",
     "totalRevenue": "Total revenue",
     "totalPayments": "Total payments"
+  },
+  "gamification": {
+    "attendance": "For attending class",
+    "testFullScore": "1st attempt — full score",
+    "testPartial": "Attempt {{attempt}} — {{percent}}%",
+    "testNoPoints": "Attempt {{attempt}} — no points",
+    "homeworkGraded": "Homework graded"
   }
 }

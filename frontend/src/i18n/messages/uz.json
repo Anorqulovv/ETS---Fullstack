@@ -391,7 +391,9 @@
       "unpaidLabel": "To'lanmagan",
       "paymentsCount": "To'lovlar soni",
       "paymentStatus": "To'lov holati",
-      "opsSubtitle": "Operatsion ko'rsatkichlar"
+      "opsSubtitle": "Operatsion ko'rsatkichlar",
+      "debt": "Qarzdorlik",
+      "assignedTests": "Sizga tayinlangan testlar"
     },
     "takeTest": {
       "rulesTitle": "Diqqat — test qoidalari:",
@@ -474,5 +476,12 @@
     "paidAt": "To'langan sana",
     "totalRevenue": "Umumiy tushum",
     "totalPayments": "To'lovlar soni"
+  },
+  "gamification": {
+    "attendance": "Darsga qatnashgani uchun",
+    "testFullScore": "1-urinish — to'liq ball",
+    "testPartial": "{{attempt}}-urinish — {{percent}}%",
+    "testNoPoints": "{{attempt}}-urinish — ball berilmaydi",
+    "homeworkGraded": "Uyga vazifa baholandi"
   }
 }

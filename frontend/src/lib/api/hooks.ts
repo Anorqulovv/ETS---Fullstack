@@ -605,10 +605,22 @@ export function useResetTestAttempt() {
 
 export interface PointsLogEntry {
   id: number;
-  source: "ATTENDANCE" | "TEST";
+  source: "ATTENDANCE" | "TEST" | "HOMEWORK" | "MANUAL" | "SHOP";
   amount: number;
   note?: string;
+  noteKey?: string;
+  noteParams?: Record<string, unknown>;
   createdAt?: string;
+}
+
+/** Renders a points-log entry's note: translated via noteKey+noteParams when present
+ *  (new entries going forward), falling back to the raw stored note for legacy rows. */
+export function formatPointsLogNote(
+  log: PointsLogEntry,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): string {
+  if (log.noteKey) return t(log.noteKey, log.noteParams);
+  return log.note ?? "";
 }
 
 export interface LeaderboardEntry {

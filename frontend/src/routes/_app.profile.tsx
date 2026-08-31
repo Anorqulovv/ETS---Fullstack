@@ -14,7 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-context";
 import { useUpdateProfile } from "@/lib/api/hooks";
-import { fileToAvatarDataUrl, getAvatarUrl } from "@/lib/avatar";
+import { getAvatarUrl } from "@/lib/avatar";
+import { AvatarCropDialog } from "@/components/shared/avatar-crop-dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -39,6 +41,9 @@ function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [viewLargeOpen, setViewLargeOpen] = useState(false);
 
   const initials =
     user?.fullName
@@ -55,27 +60,32 @@ function ProfilePage() {
   const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
   const isNewPasswordStrong = !newPassword || STRONG_PASSWORD_RE.test(newPassword);
 
-  async function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropSrc(reader.result as string);
+      setCropOpen(true);
+    };
+    reader.onerror = () => toast.error(t("pages.profile.uploadFailed"));
+    reader.readAsDataURL(file);
+  }
+
+  function handleCropped(dataUrl: string) {
     setAvatarUploading(true);
-    try {
-      const dataUrl = await fileToAvatarDataUrl(file);
-      updateProfile.mutate(
-        { avatar: dataUrl },
-        {
-          onSuccess: (fresh) => {
-            updateUser({ avatar: fresh?.avatar ?? dataUrl });
-            toast.success(t("toast.updated"));
-          },
+    updateProfile.mutate(
+      { avatar: dataUrl },
+      {
+        onSuccess: (fresh) => {
+          updateUser({ avatar: fresh?.avatar ?? dataUrl });
+          toast.success(t("toast.updated"));
         },
-      );
-    } catch {
-      toast.error(t("pages.profile.uploadFailed"));
-    } finally {
-      setAvatarUploading(false);
-    }
+        onError: () => toast.error(t("pages.profile.uploadFailed")),
+        onSettled: () => setAvatarUploading(false),
+      },
+    );
   }
 
   function handleAvatarDelete() {
@@ -142,33 +152,42 @@ function ProfilePage() {
 
         <Card className="shadow-soft">
           <CardHeader className="flex flex-row items-center gap-4">
-            <div className="group relative">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={getAvatarUrl(user)} alt={user?.fullName} />
-                <AvatarFallback className="bg-primary/10 text-lg font-medium text-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={avatarUploading}
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                aria-label={t("pages.profile.uploadPhoto")}
+                onClick={() => user?.avatar && setViewLargeOpen(true)}
+                className="block rounded-full ring-2 ring-transparent transition-shadow hover:ring-primary/30"
+                aria-label="Rasmni kattaroq ko'rish"
               >
-                <Camera className="h-5 w-5" />
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={getAvatarUrl(user)} alt={user?.fullName} />
+                  <AvatarFallback className="bg-primary/10 text-lg font-medium text-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
               </button>
-              {user?.avatar ? (
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={handleAvatarDelete}
-                  disabled={avatarUploading || updateProfile.isPending}
-                  className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-opacity hover:opacity-90"
-                  aria-label={t("pages.profile.deletePhoto")}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
+                  aria-label={t("pages.profile.uploadPhoto")}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Camera className="h-3.5 w-3.5" />
                 </button>
-              ) : null}
+                {user?.avatar ? (
+                  <button
+                    type="button"
+                    onClick={handleAvatarDelete}
+                    disabled={avatarUploading || updateProfile.isPending}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                    aria-label={t("pages.profile.deletePhoto")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -268,6 +287,25 @@ function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <AvatarCropDialog
+        imageSrc={cropSrc}
+        open={cropOpen}
+        onOpenChange={setCropOpen}
+        onCropped={handleCropped}
+      />
+
+      <Dialog open={viewLargeOpen} onOpenChange={setViewLargeOpen}>
+        <DialogContent className="flex items-center justify-center border-none bg-transparent p-0 shadow-none sm:max-w-lg">
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user?.fullName}
+              className="max-h-[80vh] w-full rounded-lg object-contain"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </PageMotion>
   );
 }

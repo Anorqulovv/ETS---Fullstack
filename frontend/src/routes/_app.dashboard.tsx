@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance } from "@/lib/api/hooks";
+import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance, formatPointsLogNote } from "@/lib/api/hooks";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
@@ -695,7 +695,7 @@ function StudentDashboard() {
   const unpaid = balance?.hasCoursePricing ? (balance.debtAmount ?? 0) : 0;
   const paymentChart = [
     { name: t("pages.dashboard.paidLabel"), amount: paid, fill: "var(--color-success)" },
-    { name: "Qarzdorlik", amount: unpaid, fill: "var(--color-destructive)" },
+    { name: t("pages.dashboard.debt"), amount: unpaid, fill: "var(--color-destructive)" },
   ];
 
   return (
@@ -713,7 +713,7 @@ function StudentDashboard() {
             index={1}
           />
           <StatCard
-            label="Qarzdorlik"
+            label={t("pages.dashboard.debt")}
             value={unpaid > 0 ? format(unpaid) : t("common.none")}
             icon={Wallet}
             trend={unpaid > 0 ? "down" : "up"}
@@ -755,7 +755,7 @@ function StudentDashboard() {
 
           <Card className="shadow-soft lg:col-span-2">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Sizga tayinlangan testlar</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("pages.dashboard.assignedTests")}</CardTitle>
             </CardHeader>
             <CardContent>
               {tests.length === 0 ? (
@@ -817,7 +817,7 @@ function StudentDashboard() {
                 <div className="max-h-52 space-y-1.5 overflow-y-auto">
                   {pointsData.logs.map((log) => (
                     <div key={log.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-                      <span className="text-muted-foreground">{log.note}</span>
+                      <span className="text-muted-foreground">{formatPointsLogNote(log, t)}</span>
                       <Badge
                         variant="secondary"
                         className={log.amount > 0 ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}
@@ -862,7 +862,7 @@ function ParentDashboard() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <StatCard label={t("pages.dashboard.paymentsCount")} value={payments.length} icon={CircleDollarSign} index={0} to="/payments" />
           <StatCard
-            label="Qarzdorlik"
+            label={t("pages.dashboard.debt")}
             value={totalUnpaid > 0 ? format(totalUnpaid) : t("common.none")}
             icon={Wallet}
             trend={totalUnpaid > 0 ? "down" : "up"}

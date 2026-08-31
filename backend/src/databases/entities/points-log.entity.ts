@@ -32,6 +32,15 @@ export class PointsLog extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   note: string;
 
+  /** i18n key for translating `note` client-side (e.g. "gamification.attendance"). Null on
+   *  legacy rows and free-text MANUAL/SHOP notes — those fall back to the raw `note` text. */
+  @Column({ type: 'varchar', nullable: true })
+  noteKey: string;
+
+  /** Params to interpolate into the noteKey translation (e.g. { attempt: 2, percent: 70 }). */
+  @Column({ type: 'jsonb', nullable: true })
+  noteParams: Record<string, unknown>;
+
   /** attendanceId or testResultId this entry came from — for audit/debug, not enforced as an FK. */
   @Column({ nullable: true })
   refId: number;
