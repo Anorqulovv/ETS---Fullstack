@@ -275,7 +275,7 @@ function ProfilePage() {
                   newPassword && !isNewPasswordStrong ? "text-destructive" : "text-muted-foreground"
                 }`}
               >
-                Kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)
+                {t("pages.profile.passwordStrengthHint")}
               </p>
             </div>
 

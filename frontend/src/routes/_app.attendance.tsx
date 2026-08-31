@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Users2 } from "lucide-react";
 
+import { useAuth } from "@/lib/auth-context";
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
 import { Input } from "@/components/ui/input";
@@ -103,28 +104,30 @@ function AttendancePage() {
     },
     {
       key: "type",
-      header: "Type",
+      header: t("common.type"),
       cell: (r) => <span className="text-muted-foreground">{r.type ?? "—"}</span>,
     },
   ];
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const { user } = useAuth();
+  const canMarkByGroup = user?.role !== "STUDENT";
 
   return (
     <div className="space-y-4">
-      <Card className="shadow-soft">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-          <div>
-            <p className="text-sm font-medium">{t("pages.attendance.byGroup")}</p>
-            <p className="text-xs text-muted-foreground">
-              Bir guruhning barcha o'quvchilarini bir vaqtda belgilang
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => setGroupDialogOpen(true)}>
-            <Users2 className="mr-1.5 h-4 w-4" />
-            Guruh bo'yicha belgilash
-          </Button>
-        </CardContent>
-      </Card>
+      {canMarkByGroup ? (
+        <Card className="shadow-soft">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div>
+              <p className="text-sm font-medium">{t("pages.attendance.byGroup")}</p>
+              <p className="text-xs text-muted-foreground">{t("pages.attendance.byGroupDescription")}</p>
+            </div>
+            <Button variant="outline" onClick={() => setGroupDialogOpen(true)}>
+              <Users2 className="mr-1.5 h-4 w-4" />
+              {t("pages.attendance.markByGroup")}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <CrudPage<AttendanceRecord>
         title={t("pages.attendance.title")}

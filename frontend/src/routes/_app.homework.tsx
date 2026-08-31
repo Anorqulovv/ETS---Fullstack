@@ -95,8 +95,8 @@ function StaffHomeworkView() {
   return (
     <>
       <CrudPage<HomeworkAssignment>
-        title="Uyga vazifalar"
-        description="Guruhlarga uyga vazifa berish va topshiriqlarni baholash"
+        title={t("pages.homework.title")}
+        description={t("pages.homework.staffDescription")}
         navKey="homework"
         columns={columns}
         useList={homeworkQ.useList}
@@ -285,18 +285,19 @@ function SubmissionsDialog({
 /* ==================== STUDENT ==================== */
 
 function StudentHomeworkView() {
+  const { t } = useTranslation();
   const { data, isLoading } = homeworkQ.useList({ limit: 100 });
   const assignments = data?.data ?? [];
 
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Uyga vazifalar</h1>
-        <p className="text-sm text-muted-foreground">Guruhingizga berilgan uyga vazifalar</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("pages.homework.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("pages.homework.myDescription")}</p>
       </div>
-      {isLoading ? <p className="text-sm text-muted-foreground">Yuklanmoqda...</p> : null}
+      {isLoading ? <p className="text-sm text-muted-foreground">{t("common.loading")}</p> : null}
       {!isLoading && !assignments.length ? (
-        <p className="text-sm text-muted-foreground">Hozircha uyga vazifa yo'q</p>
+        <p className="text-sm text-muted-foreground">{t("pages.homework.empty")}</p>
       ) : null}
       <div className="grid gap-3">
         {assignments.map((a) => (
@@ -308,6 +309,7 @@ function StudentHomeworkView() {
 }
 
 function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment }) {
+  const { t } = useTranslation();
   const { data: mySubmissions } = useMyHomeworkSubmission(assignment.id);
   const submitHomework = useSubmitHomework();
   const [open, setOpen] = useState(false);
@@ -335,7 +337,7 @@ function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment 
           ) : null}
           {assignment.deadline ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Muddat: {formatDeadline(assignment.deadline)}
+              {t("pages.homework.deadline")}: {formatDeadline(assignment.deadline)}
             </p>
           ) : null}
         </div>
@@ -343,10 +345,10 @@ function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment 
           <Badge variant={current.status === "GRADED" ? "default" : "secondary"} className="shrink-0">
             {current.status === "GRADED" ? (
               <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> {current.score} ball
+                <CheckCircle2 className="h-3 w-3" /> {t("pages.homework.scoreLabel", { score: current.score })}
               </span>
             ) : (
-              "Topshirildi, kutilmoqda"
+              t("pages.homework.submittedPending")
             )}
           </Badge>
         ) : null}
@@ -361,25 +363,25 @@ function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment 
           <DialogTrigger asChild>
             <Button type="button" size="sm" className="mt-3">
               <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Topshirish
+              {t("pages.homework.submit")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{assignment.title} — topshirish</DialogTitle>
+              <DialogTitle>{t("pages.homework.submitDialogTitle", { title: assignment.title })}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-3">
               <div className="grid gap-1.5">
-                <Label>Matn / havola</Label>
+                <Label>{t("pages.homework.textOrLink")}</Label>
                 <Textarea
                   value={textContent}
                   onChange={(e) => setTextContent(e.target.value)}
                   rows={4}
-                  placeholder="Ishingiz haqida yozing yoki havola qoldiring"
+                  placeholder={t("pages.homework.textPlaceholder")}
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>Fayl (ixtiyoriy)</Label>
+                <Label>{t("pages.homework.fileOptional")}</Label>
                 <Input type="file" onChange={handleFile} />
                 {file ? <p className="text-xs text-muted-foreground">{file.name}</p> : null}
               </div>
@@ -399,7 +401,7 @@ function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment 
                   )
                 }
               >
-                Topshirish
+                {t("pages.homework.submit")}
               </Button>
             </DialogFooter>
           </DialogContent>

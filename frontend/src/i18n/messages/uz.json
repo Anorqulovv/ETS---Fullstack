@@ -236,7 +236,9 @@
       "subtitle": "Kunlik davomat yozuvlari",
       "createTitle": "Davomat yozuvi",
       "byGroup": "Guruh bo'yicha davomat",
-      "noStudents": "Bu guruhda o'quvchi topilmadi."
+      "noStudents": "Bu guruhda o'quvchi topilmadi.",
+      "byGroupDescription": "Bir guruhning barcha o'quvchilarini bir vaqtda belgilang",
+      "markByGroup": "Guruh bo'yicha belgilash"
     },
     "tests": {
       "title": "Testlar",
@@ -343,7 +345,8 @@
       "passwordHint": "Parolni o'zgartirmoqchi bo'lmasangiz, bu maydonlarni bo'sh qoldiring.",
       "saving": "Saqlanmoqda…",
       "uploadPhoto": "Rasm yuklash",
-      "uploadFailed": "Rasmni yuklab bo'lmadi"
+      "uploadFailed": "Rasmni yuklab bo'lmadi",
+      "passwordStrengthHint": "Kamida 8 belgi, katta-kichik harf, raqam va maxsus belgi (masalan: Ab1@cdef)"
     },
     "gamification": {
       "title": "Gamifikatsiya",
@@ -452,6 +455,20 @@
     },
     "hr": {
       "description": "Kadrlar bo'limi (HR) xodimlari"
+    },
+    "homework": {
+      "title": "Uyga vazifalar",
+      "myDescription": "Guruhingizga berilgan uyga vazifalar",
+      "staffDescription": "Guruhlarga uyga vazifa berish va topshiriqlarni baholash",
+      "empty": "Hozircha uyga vazifa yo'q",
+      "deadline": "Muddat",
+      "scoreLabel": "{{score}} ball",
+      "submittedPending": "Topshirildi, kutilmoqda",
+      "submit": "Topshirish",
+      "submitDialogTitle": "{{title}} — topshirish",
+      "textOrLink": "Matn / havola",
+      "textPlaceholder": "Ishingiz haqida yozing yoki havola qoldiring",
+      "fileOptional": "Fayl (ixtiyoriy)"
     }
   },
   "notFound": {
@@ -482,6 +499,8 @@
     "testFullScore": "1-urinish — to'liq ball",
     "testPartial": "{{attempt}}-urinish — {{percent}}%",
     "testNoPoints": "{{attempt}}-urinish — ball berilmaydi",
-    "homeworkGraded": "Uyga vazifa baholandi"
+    "homeworkGraded": "Uyga vazifa baholandi",
+    "sourceShop": "Do'kon",
+    "sourceManual": "Qo'lda qo'shilgan"
   }
 }

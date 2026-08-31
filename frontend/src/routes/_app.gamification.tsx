@@ -287,7 +287,15 @@ function GamificationPage() {
                   >
                     <div>
                       <span className="font-medium">
-                        {log.source === "ATTENDANCE" ? t("nav.attendance") : t("pages.tests.title")}
+                        {log.source === "ATTENDANCE"
+                          ? t("nav.attendance")
+                          : log.source === "TEST"
+                            ? t("pages.tests.title")
+                            : log.source === "HOMEWORK"
+                              ? t("pages.homework.title")
+                              : log.source === "SHOP"
+                                ? t("gamification.sourceShop")
+                                : t("gamification.sourceManual")}
                       </span>
                       {formatPointsLogNote(log, t) ? (
                         <span className="ml-2 text-muted-foreground">{formatPointsLogNote(log, t)}</span>

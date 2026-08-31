@@ -236,7 +236,9 @@
       "subtitle": "Daily attendance records",
       "createTitle": "Record attendance",
       "byGroup": "Attendance by group",
-      "noStudents": "No students in this group."
+      "noStudents": "No students in this group.",
+      "byGroupDescription": "Mark all students in a group at once",
+      "markByGroup": "Mark by group"
     },
     "tests": {
       "title": "Tests",
@@ -343,7 +345,8 @@
       "passwordHint": "Leave these fields blank if you don't want to change your password.",
       "saving": "Saving…",
       "uploadPhoto": "Upload photo",
-      "uploadFailed": "Couldn't upload the photo"
+      "uploadFailed": "Couldn't upload the photo",
+      "passwordStrengthHint": "At least 8 characters, upper and lower case, a number and a special character (e.g. Ab1@cdef)"
     },
     "gamification": {
       "title": "Gamification",
@@ -452,6 +455,20 @@
     },
     "hr": {
       "description": "Human resources staff"
+    },
+    "homework": {
+      "title": "Homework",
+      "myDescription": "Homework assigned to your group",
+      "staffDescription": "Assign homework to groups and grade submissions",
+      "empty": "No homework yet",
+      "deadline": "Deadline",
+      "scoreLabel": "{{score}} points",
+      "submittedPending": "Submitted, pending review",
+      "submit": "Submit",
+      "submitDialogTitle": "Submit {{title}}",
+      "textOrLink": "Text / link",
+      "textPlaceholder": "Write about your work or leave a link",
+      "fileOptional": "File (optional)"
     }
   },
   "notFound": {
@@ -482,6 +499,8 @@
     "testFullScore": "1st attempt — full score",
     "testPartial": "Attempt {{attempt}} — {{percent}}%",
     "testNoPoints": "Attempt {{attempt}} — no points",
-    "homeworkGraded": "Homework graded"
+    "homeworkGraded": "Homework graded",
+    "sourceShop": "Shop",
+    "sourceManual": "Manually added"
   }
 }
