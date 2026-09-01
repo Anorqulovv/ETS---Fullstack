@@ -440,12 +440,21 @@ export interface DashboardStats {
   /** Month-over-month % change, computed from the last two points of `enrollment`/`revenue`. null when there isn't enough history yet (e.g. a brand-new org). */
   enrollmentDeltaPct: number | null;
   revenueDeltaPct: number | null;
+  /** From /payments/summary — real outstanding balance across every enrolled student. */
+  totalDebt: number;
+  studentsWithDebt: number;
+  paymentsByStatus: { PAID: number; UNPAID: number; PARTIAL: number };
+  /** Average attendance rate (%) across the charted window — null when attendanceHasData is false. */
+  attendanceAvgRate: number | null;
 }
 
 export interface DashboardData {
   stats: DashboardStats;
   enrollment: { month: string; students: number }[];
   attendance: { day: string; rate: number }[];
+  /** True when at least one attendance record fell inside the charted window — lets the UI
+   *  show "no data" instead of a misleading flat-zero line when nothing's been marked recently. */
+  attendanceHasData: boolean;
   revenue: { month: string; revenue: number }[];
   activity: { id: number | string; who: string; action: string; at: string }[];
 }

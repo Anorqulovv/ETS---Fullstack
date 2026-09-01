@@ -136,7 +136,12 @@
       "students": "Студенты",
       "teachers": "Учителя",
       "groups": "Активные группы",
-      "revenue": "Доход за месяц"
+      "revenue": "Доход за месяц",
+      "totalDebt": "Общая задолженность",
+      "studentsWithDebtDelta": "{{count}} учеников с долгом",
+      "avgAttendance": "Средняя посещаемость",
+      "last14Days": "Последние 14 дней",
+      "allTime": "За все время"
     },
     "enrollment": "Динамика зачислений",
     "revenue": "Доход по месяцам",
@@ -146,7 +151,8 @@
     "latestStudents": "Новые студенты",
     "latestPayments": "Последние платежи",
     "calendar": "Календарь",
-    "viewAll": "Все"
+    "viewAll": "Все",
+    "paymentStatusBreakdown": "Статус оплаты"
   },
   "roles": {
     "SUPERADMIN": "Супер-админ",

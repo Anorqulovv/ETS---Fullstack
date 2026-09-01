@@ -6,15 +6,19 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { motion } from "framer-motion";
-import { GraduationCap, UserRound, Users2, CircleDollarSign, CalendarDays, ClipboardCheck, Wallet, ListChecks, Trophy } from "lucide-react";
+import { GraduationCap, UserRound, Users2, CircleDollarSign, CalendarDays, ClipboardCheck, Wallet, ListChecks, Trophy, AlertTriangle, TrendingUp } from "lucide-react";
 
 import { PageMotion } from "@/components/shared/page-motion";
 import { PageHeader } from "@/components/shared/page-header";
@@ -179,44 +183,116 @@ function StaffDashboard() {
           </ChartCard>
 
           <ChartCard title={t("dashboard.attendanceRate")}>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={data?.attendance ?? []}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--color-border)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="day"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  domain={[60, 100]}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-popover)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rate"
-                  stroke="var(--color-chart-3)"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {data?.attendanceHasData ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={data?.attendance ?? []}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--color-border)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-popover)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rate"
+                    stroke="var(--color-chart-3)"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart />
+            )}
+          </ChartCard>
+        </div>
+
+        {/* Payments health + attendance summary — surfaces data /payments/summary already
+            returns (totalDebt, studentsWithDebt, byStatus) that wasn't shown anywhere before. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <StatCard
+            label={t("dashboard.stats.totalDebt")}
+            value={stats ? format(stats.totalDebt) : "—"}
+            delta={t("dashboard.stats.studentsWithDebtDelta", { count: stats?.studentsWithDebt ?? 0 })}
+            trend={stats && stats.totalDebt > 0 ? "down" : "up"}
+            icon={AlertTriangle}
+            index={4}
+            to="/payments"
+          />
+          <StatCard
+            label={t("dashboard.stats.avgAttendance")}
+            value={stats?.attendanceAvgRate != null ? `${stats.attendanceAvgRate}%` : "—"}
+            delta={t("dashboard.stats.last14Days")}
+            trend={
+              stats?.attendanceAvgRate == null
+                ? "flat"
+                : stats.attendanceAvgRate >= 80
+                  ? "up"
+                  : "down"
+            }
+            icon={TrendingUp}
+            index={5}
+            to="/attendance"
+          />
+          <ChartCard title={t("dashboard.paymentStatusBreakdown")}>
+            {stats && (stats.paymentsByStatus.PAID || stats.paymentsByStatus.UNPAID || stats.paymentsByStatus.PARTIAL) ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: t("status.paid"), value: stats.paymentsByStatus.PAID, color: "var(--color-success)" },
+                      { name: t("status.unpaid"), value: stats.paymentsByStatus.UNPAID, color: "var(--color-destructive)" },
+                      { name: t("status.partial"), value: stats.paymentsByStatus.PARTIAL, color: "var(--color-warning)" },
+                    ].filter((d) => d.value > 0)}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={45}
+                    outerRadius={70}
+                    paddingAngle={2}
+                  >
+                    {[
+                      { color: "var(--color-success)" },
+                      { color: "var(--color-destructive)" },
+                      { color: "var(--color-warning)" },
+                    ].map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-popover)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart />
+            )}
           </ChartCard>
         </div>
 
@@ -521,6 +597,10 @@ function TeacherDashboard() {
   const activeGroups = groups.filter((g) => g.status === "ACTIVE").length;
   const chartData = groups.map((g) => ({ name: g.name, students: g.studentsCount ?? 0 }));
   const { data: leaderboard } = useLeaderboard(groups[0]?.id);
+  // /attendance and /students already come back teacher-scoped from the backend (see
+  // AttendanceService.findAll / StudentService.findAll), so reusing useDashboard here gives an
+  // accurate attendance rate for free — no extra backend work needed.
+  const { data: dash } = useDashboard();
 
   return (
     <PageMotion>
@@ -597,6 +677,46 @@ function TeacherDashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <StatCard
+            label={t("dashboard.stats.avgAttendance")}
+            value={dash?.stats.attendanceAvgRate != null ? `${dash.stats.attendanceAvgRate}%` : "—"}
+            delta={t("dashboard.stats.last14Days")}
+            trend={
+              dash?.stats.attendanceAvgRate == null
+                ? "flat"
+                : dash.stats.attendanceAvgRate >= 80
+                  ? "up"
+                  : "down"
+            }
+            icon={ClipboardCheck}
+            index={4}
+            to="/attendance"
+          />
+          <ChartCard title={t("dashboard.attendanceRate")} className="lg:col-span-2">
+            {dash?.attendanceHasData ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={dash?.attendance ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-popover)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Line type="monotone" dataKey="rate" stroke="var(--color-chart-3)" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart />
+            )}
+          </ChartCard>
         </div>
 
         {leaderboard?.length ? (
@@ -686,6 +806,10 @@ function StudentDashboard() {
   const { data: pointsData } = useMyPoints();
   const { data: leaderboard } = useLeaderboard();
   const { data: balance } = useMyBalance();
+  const { data: myAttendance } = useMyAttendance();
+  const attendanceTotal = myAttendance?.length ?? 0;
+  const attendancePresent = myAttendance?.filter((a) => a.isPresent).length ?? 0;
+  const attendanceRate = attendanceTotal > 0 ? Math.round((attendancePresent / attendanceTotal) * 100) : null;
   const tests = testsData?.data ?? [];
   const payments = paymentsData ?? [];
   const paid = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + Number(p.amount), 0);
@@ -703,7 +827,7 @@ function StudentDashboard() {
       <div className="space-y-6">
         <PageHeader title={t("nav.dashboard")} description={t("pages.dashboard.personalStats")} />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label={t("pages.dashboard.activeTests")} value={tests.length} icon={ListChecks} index={0} to="/tests" />
           <StatCard
             label={t("pages.dashboard.myPoints")}
@@ -718,6 +842,15 @@ function StudentDashboard() {
             icon={Wallet}
             trend={unpaid > 0 ? "down" : "up"}
             index={2}
+          />
+          <StatCard
+            label={t("dashboard.stats.avgAttendance")}
+            value={attendanceRate != null ? `${attendanceRate}%` : "—"}
+            delta={t("dashboard.stats.allTime")}
+            trend={attendanceRate == null ? "flat" : attendanceRate >= 80 ? "up" : "down"}
+            icon={ClipboardCheck}
+            index={3}
+            to="/attendance"
           />
         </div>
 

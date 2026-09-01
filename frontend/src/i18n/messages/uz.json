@@ -136,7 +136,12 @@
       "students": "O'quvchilar",
       "teachers": "O'qituvchilar",
       "groups": "Faol guruhlar",
-      "revenue": "Bu oydagi daromad"
+      "revenue": "Bu oydagi daromad",
+      "totalDebt": "Umumiy qarzdorlik",
+      "studentsWithDebtDelta": "{{count}} ta qarzdor o'quvchi",
+      "avgAttendance": "O'rtacha davomat",
+      "last14Days": "So'nggi 14 kun",
+      "allTime": "Barcha vaqt"
     },
     "enrollment": "Ro'yxatga olish dinamikasi",
     "revenue": "Oylik daromad",
@@ -146,7 +151,8 @@
     "latestStudents": "Yangi o'quvchilar",
     "latestPayments": "So'nggi to'lovlar",
     "calendar": "Kalendar",
-    "viewAll": "Hammasini ko'rish"
+    "viewAll": "Hammasini ko'rish",
+    "paymentStatusBreakdown": "To'lov holati"
   },
   "roles": {
     "SUPERADMIN": "Super admin",

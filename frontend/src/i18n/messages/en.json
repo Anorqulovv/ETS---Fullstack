@@ -136,7 +136,12 @@
       "students": "Students",
       "teachers": "Teachers",
       "groups": "Active groups",
-      "revenue": "Revenue this month"
+      "revenue": "Revenue this month",
+      "totalDebt": "Total debt",
+      "studentsWithDebtDelta": "{{count}} students in debt",
+      "avgAttendance": "Avg. attendance",
+      "last14Days": "Last 14 days",
+      "allTime": "All time"
     },
     "enrollment": "Enrollment trend",
     "revenue": "Revenue by month",
@@ -146,7 +151,8 @@
     "latestStudents": "Latest students",
     "latestPayments": "Latest payments",
     "calendar": "Calendar",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "paymentStatusBreakdown": "Payment status"
   },
   "roles": {
     "SUPERADMIN": "Super admin",

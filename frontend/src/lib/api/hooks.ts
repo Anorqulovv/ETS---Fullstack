@@ -203,6 +203,7 @@ function flattenStudent(raw: unknown): Student {
     createdAt: (r.createdAt as string) ?? undefined,
     parentId: (r.parentId as number) ?? r.parent?.id ?? undefined,
     parentName: r.parent?.user?.fullName ?? undefined,
+    gender: (user.gender as Student["gender"]) ?? (r.gender as Student["gender"]) ?? undefined,
   };
 }
 
@@ -217,6 +218,7 @@ function flattenParent(raw: unknown): Parent {
     phone: (user.phone as string) ?? (r.phone2 as string) ?? (r.phone as string) ?? undefined,
     childrenCount: Array.isArray(r.students) ? (r.students as unknown[]).length : undefined,
     telegramId: (user.telegramId as string) ?? (r.telegramId as string) ?? undefined,
+    gender: (user.gender as Parent["gender"]) ?? (r.gender as Parent["gender"]) ?? undefined,
   };
 }
 
@@ -361,6 +363,18 @@ export const parentsQ = createCrudHooks<Parent>(
   ["fullName", "username", "phone", "password", "telegramId", "gender"],
 );
 /** GET /payments/my — STUDENT's own payment history. */
+/** GET /attendance/my — STUDENT only: their own attendance history. */
+export function useMyAttendance() {
+  return useQuery({
+    queryKey: ["attendance", "my"],
+    queryFn: () =>
+      apiRequest<AttendanceRecord[]>({
+        url: `${RESOURCES.attendance}/my`,
+        method: "GET",
+      }),
+  });
+}
+
 export function useMyPayments() {
   return useQuery({
     queryKey: ["payments", "my"],
@@ -1373,10 +1387,33 @@ function timeAgo(iso?: string) {
  * (payments/summary, activity/logs) just leaves that one slice empty instead of breaking
  * the whole page.
  */
-function pctChange(series: number[]): number | null {
-  if (series.length < 2) return null;
-  const prev = series[series.length - 2];
-  const curr = series[series.length - 1];
+/**
+ * Trailing-30-days vs the 30 days before that, based on raw timestamps — NOT calendar-month
+ * buckets. A calendar-month comparison (current month bucket vs previous month bucket) looks
+ * catastrophic on day 1-2 of any month, since the current bucket has almost no data yet next to
+ * a full previous month (e.g. "-98%" on Sept 1st) — that's a comparison artifact, not a real
+ * trend. A rolling 30-day window doesn't care what day of the month it is.
+ */
+function rollingPctChange<T>(
+  items: T[],
+  dateOf: (item: T) => string | undefined,
+  valueOf: (item: T) => number,
+  windowDays = 30,
+): number | null {
+  const now = Date.now();
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
+  let curr = 0;
+  let prev = 0;
+  for (const item of items) {
+    const iso = dateOf(item);
+    if (!iso) continue;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) continue;
+    const age = now - t;
+    if (age < 0) continue;
+    if (age < windowMs) curr += valueOf(item);
+    else if (age < windowMs * 2) prev += valueOf(item);
+  }
   if (prev === 0) return curr === 0 ? 0 : null; // avoid a meaningless "Infinity%" off a zero base
   return Math.round(((curr - prev) / prev) * 1000) / 10; // one decimal place
 }
@@ -1444,6 +1481,13 @@ export function useDashboard() {
         const b = dayBuckets.get(d)!;
         return { day: dayLabel(d), rate: b.total > 0 ? Math.round((b.present / b.total) * 100) : 0 };
       });
+      const attendanceHasData = Array.from(dayBuckets.values()).some((b) => b.total > 0);
+      const attendanceTotals = Array.from(dayBuckets.values()).reduce(
+        (acc, b) => ({ present: acc.present + b.present, total: acc.total + b.total }),
+        { present: 0, total: 0 },
+      );
+      const attendanceAvgRate =
+        attendanceTotals.total > 0 ? Math.round((attendanceTotals.present / attendanceTotals.total) * 100) : null;
 
       // Revenue: sum of PAID payments per month, last 6 months.
       const revenueByMonth = new Map(months.map((m) => [m, 0]));
@@ -1478,11 +1522,23 @@ export function useDashboard() {
           groups: groupsR.status === "fulfilled" ? groupsR.value.total : 0,
           activeGroups: groups.filter((g) => g.status === "ACTIVE").length,
           revenue: revenueTotal,
-          enrollmentDeltaPct: pctChange(enrollment.map((e) => e.students)),
-          revenueDeltaPct: pctChange(revenue.map((r) => r.revenue)),
+          enrollmentDeltaPct: rollingPctChange(students, (s) => s.createdAt, () => 1),
+          revenueDeltaPct: rollingPctChange(
+            payments.filter((p) => p.status === "PAID"),
+            (p) => p.paidAt,
+            (p) => Number(p.amount ?? 0),
+          ),
+          totalDebt: summaryR.status === "fulfilled" ? (summaryR.value.totalDebt ?? 0) : 0,
+          studentsWithDebt: summaryR.status === "fulfilled" ? (summaryR.value.studentsWithDebt ?? 0) : 0,
+          paymentsByStatus:
+            summaryR.status === "fulfilled"
+              ? summaryR.value.byStatus
+              : { PAID: 0, UNPAID: 0, PARTIAL: 0 },
+          attendanceAvgRate,
         },
         enrollment,
         attendance: attendanceChart,
+        attendanceHasData,
         revenue,
         activity,
       };
