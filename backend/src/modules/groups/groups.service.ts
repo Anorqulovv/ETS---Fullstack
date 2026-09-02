@@ -89,6 +89,21 @@ export class GroupsService extends BaseService<CreateGroupDto, UpdateGroupDto, G
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
 
+  /**
+   * Muddati (endDate) o'tgan, lekin hali FINISHED deb belgilanmagan guruhlarni avtomatik
+   * yakunlaydi. Cron kerak emas — har safar guruhlar ro'yxati so'ralganda ishga tushadi,
+   * shuning uchun ma'lumot doim o'zini-o'zi to'g'irlab turadi.
+   */
+  private async autoFinishExpiredGroups(): Promise<void> {
+    await this.groupRepo
+      .createQueryBuilder()
+      .update(Group)
+      .set({ status: GroupStatus.FINISHED })
+      .where('"endDate" < CURRENT_DATE')
+      .andWhere('status != :finished', { finished: GroupStatus.FINISHED })
+      .execute();
+  }
+
   private timeToMinutes(time?: string | null): number | null {
     if (!time) return null;
     const [h, m] = time.split(':').map(Number);
@@ -317,6 +332,7 @@ export class GroupsService extends BaseService<CreateGroupDto, UpdateGroupDto, G
   }
 
   async findAll(currentUser: any, query?: any): Promise<ISucces> {
+    await this.autoFinishExpiredGroups();
     const where: any = {};
 
     if (query?.name) where.name = ILike(`%${query.name}%`);
@@ -355,6 +371,7 @@ export class GroupsService extends BaseService<CreateGroupDto, UpdateGroupDto, G
   }
 
   async findOneWithStudents(id: number): Promise<ISucces> {
+    await this.autoFinishExpiredGroups();
     const group = await this.groupRepo.findOne({
       where: { id },
       relations: ['teacher', 'direction', 'students', 'students.user', 'support'],
