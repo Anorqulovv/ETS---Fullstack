@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance, formatPointsLogNote } from "@/lib/api/hooks";
+import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useMyAttendance, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance, formatPointsLogNote } from "@/lib/api/hooks";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
