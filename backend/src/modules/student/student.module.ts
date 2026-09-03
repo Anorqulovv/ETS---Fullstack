@@ -7,13 +7,14 @@ import { Student } from 'src/databases/entities/student.entity';
 import { Group } from 'src/databases/entities/group.entity';
 import { Parent } from 'src/databases/entities/parent.entity';
 import { User } from 'src/databases/entities/user.entity';
+import { StudentGroup } from 'src/databases/entities/student-group.entity';
 import { UsersModule } from 'src/modules/users/users.module';
 import { TelegramModule } from 'src/modules/telegram/telegram.module';
 
 @Module({
   imports: [
     JwtModule.register({}),
-    TypeOrmModule.forFeature([Student, Group, Parent, User]),
+    TypeOrmModule.forFeature([Student, Group, Parent, User, StudentGroup]),
     UsersModule,
     TelegramModule,
   ],
