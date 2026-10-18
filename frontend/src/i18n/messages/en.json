@@ -33,7 +33,8 @@
     "gamification": "Gamification",
     "activity": "Recent activity",
     "salary": "Salaries",
-    "hr": "HR"
+    "hr": "HR",
+    "booking": "Support Booking"
   },
   "common": {
     "search": "Search",
@@ -113,7 +114,8 @@
     "view": "View",
     "endsAt": "End time",
     "title": "Name",
-    "viewProfile": "View profile"
+    "viewProfile": "View profile",
+    "minutesShort": "min"
   },
   "toast": {
     "created": "Created successfully",
@@ -266,7 +268,11 @@
       "noResultsYet": "No one has taken this test yet.",
       "viewAnswers": "View answers",
       "allowRetry": "Allow retry",
-      "violationDefaultShort": "rule violated"
+      "violationDefaultShort": "rule violated",
+      "typeDaily": "Daily",
+      "typeWeekly": "Weekly",
+      "typeMonthly": "Monthly",
+      "passingScore": "Passing score"
     },
     "payments": {
       "title": "Payments",
@@ -379,7 +385,11 @@
       "pointsUnit": "points",
       "source": "Source",
       "pointsAdded": "Points added",
-      "pointsDeducted": "Points deducted"
+      "pointsDeducted": "Points deducted",
+      "attendanceStreak": "Attendance streak",
+      "homeworkStreak": "Homework streak",
+      "streakDays": "days",
+      "streakTimes": "times"
     },
     "activity": {
       "title": "Recent activity",
@@ -402,7 +412,12 @@
       "paymentStatus": "Payment status",
       "opsSubtitle": "Operational metrics",
       "debt": "Debt",
-      "assignedTests": "Tests assigned to you"
+      "assignedTests": "Tests assigned to you",
+      "leaderboardEmpty": "Leaderboard is empty yet.",
+      "attendanceStreak": "Attendance streak",
+      "homeworkStreak": "Homework streak",
+      "streakDays": "days",
+      "streakTimes": "times"
     },
     "takeTest": {
       "rulesTitle": "Attention — test rules:",

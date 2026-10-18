@@ -489,3 +489,34 @@ export interface HomeworkSubmission {
   submittedAt: string;
   student?: { id: number; user?: { fullName?: string } };
 }
+
+export interface SupportAvailability {
+  id: number;
+  supportId: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface SupportBooking {
+  id: number;
+  supportId: number;
+  studentId: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  support?: { id: number; fullName: string };
+  student?: { id: number; user?: { fullName?: string } };
+}
+
+export interface AvailableSupport {
+  supportId: number;
+  fullName: string;
+  windows: { startTime: string; endTime: string }[];
+}
+
+export interface FreeSlot {
+  startTime: string;
+  endTime: string;
+}

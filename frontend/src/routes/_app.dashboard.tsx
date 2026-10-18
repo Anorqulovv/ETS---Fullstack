@@ -18,7 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import { motion } from "framer-motion";
-import { GraduationCap, UserRound, Users2, CircleDollarSign, CalendarDays, ClipboardCheck, Wallet, ListChecks, Trophy, AlertTriangle, TrendingUp } from "lucide-react";
+import { GraduationCap, UserRound, Users2, CircleDollarSign, CalendarDays, ClipboardCheck, Wallet, ListChecks, Trophy, AlertTriangle, TrendingUp, Flame, BookCheck } from "lucide-react";
 
 import { PageMotion } from "@/components/shared/page-motion";
 import { PageHeader } from "@/components/shared/page-header";
@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useMyAttendance, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance, formatPointsLogNote } from "@/lib/api/hooks";
+import { useDashboard, groupsQ, studentsQ, paymentsQ, useMyPayments, useMyAttendance, useChildrenPayments, useChildrenDebt, testsQ, usePaymentsSummary, useMyPoints, useLeaderboard, useMySalary, useMyBalance, useMyStreaks, formatPointsLogNote } from "@/lib/api/hooks";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
@@ -490,7 +490,7 @@ function LeaderboardCard({ groupId, title }: { groupId?: number; title?: string 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !leaderboard?.length ? (
-          <p className="text-sm text-muted-foreground">Hozircha reyting bo'sh.</p>
+          <p className="text-sm text-muted-foreground">{t("pages.dashboard.leaderboardEmpty")}</p>
         ) : (
           <div className="space-y-1.5">
             {leaderboard.map((e) => (
@@ -751,9 +751,10 @@ function TeacherDashboard() {
 }
 
 function EmptyChart() {
+  const { t } = useTranslation();
   return (
     <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
-      Hozircha ma'lumot yo'q
+      {t("common.noData")}
     </div>
   );
 }
@@ -807,6 +808,7 @@ function StudentDashboard() {
   const { data: leaderboard } = useLeaderboard();
   const { data: balance } = useMyBalance();
   const { data: myAttendance } = useMyAttendance();
+  const { data: streaks } = useMyStreaks();
   const attendanceTotal = myAttendance?.length ?? 0;
   const attendancePresent = myAttendance?.filter((a) => a.isPresent).length ?? 0;
   const attendanceRate = attendanceTotal > 0 ? Math.round((attendancePresent / attendanceTotal) * 100) : null;
@@ -835,6 +837,23 @@ function StudentDashboard() {
             icon={Trophy}
             trend={pointsData?.points ? "up" : "flat"}
             index={1}
+            to="/gamification"
+          />
+          <StatCard
+            label={t("pages.dashboard.attendanceStreak")}
+            value={streaks?.attendanceStreak ? `${streaks.attendanceStreak} \u{1F525}` : "0"}
+            icon={Flame}
+            trend={streaks?.attendanceStreak ? "up" : "flat"}
+            index={2}
+            to="/attendance"
+          />
+          <StatCard
+            label={t("pages.dashboard.homeworkStreak")}
+            value={streaks?.homeworkStreak ? `${streaks.homeworkStreak} \u{1F525}` : "0"}
+            icon={BookCheck}
+            trend={streaks?.homeworkStreak ? "up" : "flat"}
+            index={3}
+            to="/homework"
           />
           <StatCard
             label={t("pages.dashboard.debt")}
@@ -842,6 +861,7 @@ function StudentDashboard() {
             icon={Wallet}
             trend={unpaid > 0 ? "down" : "up"}
             index={2}
+            to="/payments"
           />
           <StatCard
             label={t("dashboard.stats.avgAttendance")}
@@ -849,7 +869,7 @@ function StudentDashboard() {
             delta={t("dashboard.stats.allTime")}
             trend={attendanceRate == null ? "flat" : attendanceRate >= 80 ? "up" : "down"}
             icon={ClipboardCheck}
-            index={3}
+            index={4}
             to="/attendance"
           />
         </div>

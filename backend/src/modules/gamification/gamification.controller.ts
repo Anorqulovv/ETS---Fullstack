@@ -38,6 +38,14 @@ export class GamificationController {
     return this.service.getMyPointsByUserId(req.user.id);
   }
 
+  @Get('my-streaks')
+  @UseGuards(RolesGuard)
+  @AccessRoles(UserRole.STUDENT)
+  @ApiOperation({ summary: "O'zining davomat va uyga vazifa streaklari (ketma-ket kunlar)" })
+  getMyStreaks(@Req() req: any) {
+    return this.service.getStreaksByUserId(req.user.id);
+  }
+
   @Get('leaderboard')
   @ApiOperation({ summary: "Reyting — eng ko'p ball to'plagan o'quvchilar" })
   getLeaderboard(@Query('groupId') groupId?: string, @Query('limit') limit?: string) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Upload, CheckCircle2, RotateCcw } from "lucide-react";
+import { Upload, CheckCircle2, RotateCcw, Paperclip } from "lucide-react";
 
 import { CrudPage } from "@/components/shared/crud-page";
 import type { Column } from "@/components/shared/data-table";
@@ -45,6 +45,42 @@ function formatDeadline(v: string) {
   return `${d}.${m}.${y}${timePart ? " " + timePart.slice(0, 5) : ""}`;
 }
 
+type DeadlineStatus = "none" | "overdue" | "soon" | "ok";
+
+function deadlineStatus(deadline?: string): DeadlineStatus {
+  if (!deadline) return "none";
+  const dl = new Date(deadline);
+  if (Number.isNaN(dl.getTime())) return "none";
+  const diffMs = dl.getTime() - Date.now();
+  if (diffMs < 0) return "overdue";
+  if (diffMs < 24 * 60 * 60 * 1000) return "soon";
+  return "ok";
+}
+
+function DeadlineBadge({ deadline, t }: { deadline?: string; t: (key: string) => string }) {
+  if (!deadline) return <span className="text-muted-foreground">—</span>;
+  const status = deadlineStatus(deadline);
+  const label = formatDeadline(deadline);
+  const badgeClass =
+    status === "overdue"
+      ? "bg-destructive/15 text-destructive"
+      : status === "soon"
+        ? "bg-warning/15 text-warning-foreground"
+        : "bg-muted text-muted-foreground";
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Badge variant="secondary" className={badgeClass}>
+        {label}
+      </Badge>
+      {status === "overdue" ? (
+        <span className="text-xs text-destructive">{t("pages.homework.overdue")}</span>
+      ) : status === "soon" ? (
+        <span className="text-xs text-warning-foreground">{t("pages.homework.dueSoon")}</span>
+      ) : null}
+    </span>
+  );
+}
+
 export const Route = createFileRoute("/_app/homework")({
   head: () => ({ meta: [{ title: "Uyga vazifalar — Edu CRM" }] }),
   component: HomeworkPage,
@@ -78,15 +114,15 @@ function StaffHomeworkView() {
     },
     {
       key: "deadline",
-      header: "Muddat",
-      cell: (r) => (r.deadline ? formatDeadline(r.deadline) : "—"),
+      header: t("pages.homework.deadline"),
+      cell: (r) => <DeadlineBadge deadline={r.deadline} t={t} />,
     },
     {
       key: "submissions",
       header: "",
       cell: (r) => (
         <Button type="button" size="sm" variant="outline" onClick={() => setSubmissionsFor(r)}>
-          Topshiriqlar
+          {t("pages.homework.submissions")}
         </Button>
       ),
     },
@@ -103,7 +139,7 @@ function StaffHomeworkView() {
         useCreate={homeworkQ.useCreate}
         useUpdate={homeworkQ.useUpdate}
         useRemove={homeworkQ.useRemove}
-        createTitle="Yangi uyga vazifa"
+        createTitle={t("pages.homework.createTitle")}
         renderForm={(row, onChange) => (
           <div className="grid gap-4">
             <div className="grid gap-1.5">
@@ -111,7 +147,7 @@ function StaffHomeworkView() {
               <Input value={row?.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Tavsif</Label>
+              <Label>{t("pages.homework.description")}</Label>
               <Textarea
                 value={row?.description ?? ""}
                 onChange={(e) => onChange({ description: e.target.value })}
@@ -137,7 +173,7 @@ function StaffHomeworkView() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Muddat</Label>
+              <Label>{t("pages.homework.deadline")}</Label>
               <Input
                 type="datetime-local"
                 value={row?.deadline ? row.deadline.slice(0, 16) : ""}
@@ -169,6 +205,7 @@ function SubmissionsDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const { data: submissions, isLoading } = useHomeworkSubmissions(assignment.id);
   const gradeHomework = useGradeHomework();
   const resetSubmission = useResetHomeworkSubmission();
@@ -176,31 +213,49 @@ function SubmissionsDialog({
   const [score, setScore] = useState("");
   const [feedback, setFeedback] = useState("");
 
+  const total = submissions?.length ?? 0;
+  const graded = submissions?.filter((s) => s.status === "GRADED").length ?? 0;
+  // Baholanmaganlar ro'yxat boshida chiqadi -- o'qituvchi avval navbatdagilarni ko'radi.
+  const sorted = [...(submissions ?? [])].sort((a, b) =>
+    a.status === b.status ? 0 : a.status === "GRADED" ? 1 : -1,
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{assignment.title} — topshiriqlar</DialogTitle>
+          <DialogTitle>
+            {assignment.title} — {t("pages.homework.submissions")}
+          </DialogTitle>
+          {total > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("pages.homework.gradedSummary", { graded, total })}
+            </p>
+          ) : null}
         </DialogHeader>
         <div className="max-h-[60vh] space-y-3 overflow-y-auto">
-          {isLoading ? <p className="text-sm text-muted-foreground">Yuklanmoqda...</p> : null}
-          {!isLoading && !submissions?.length ? (
-            <p className="text-sm text-muted-foreground">Hali hech kim topshirmagan</p>
+          {isLoading ? <p className="text-sm text-muted-foreground">{t("common.loading")}</p> : null}
+          {!isLoading && !sorted.length ? (
+            <p className="text-sm text-muted-foreground">{t("pages.homework.noSubmissions")}</p>
           ) : null}
-          {submissions?.map((s) => (
+          {sorted.map((s) => (
             <div key={s.id} className="rounded-md border p-3">
               <div className="flex items-center justify-between">
-                <span className="font-medium">{s.student?.user?.fullName ?? `O'quvchi #${s.studentId}`}</span>
+                <span className="font-medium">
+                  {s.student?.user?.fullName ?? `${t("common.student")} #${s.studentId}`}
+                </span>
                 <div className="flex items-center gap-2">
                   <Badge variant={s.status === "GRADED" ? "default" : "secondary"}>
-                    {s.status === "GRADED" ? `${s.score} ball` : "Kutilmoqda"}
+                    {s.status === "GRADED"
+                      ? t("pages.homework.scoreLabel", { score: s.score })
+                      : t("pages.homework.pendingReview")}
                   </Badge>
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={() => resetSubmission.mutate({ assignmentId: assignment.id, studentId: s.studentId })}
-                    title="Qayta topshirishga ruxsat berish"
+                    title={t("pages.homework.allowResubmit")}
                   >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -209,12 +264,17 @@ function SubmissionsDialog({
               {s.textContent ? <p className="mt-2 whitespace-pre-wrap text-sm">{s.textContent}</p> : null}
               {s.fileName ? (
                 s.fileData ? (
-                  <a href={s.fileData} download={s.fileName} className="mt-2 inline-block text-sm text-primary underline">
+                  <a
+                    href={s.fileData}
+                    download={s.fileName}
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary underline"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" />
                     {s.fileName}
                   </a>
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {s.fileName} (fayl muddati tugagan)
+                    {s.fileName} ({t("pages.homework.fileExpired")})
                   </p>
                 )
               ) : null}
@@ -225,19 +285,19 @@ function SubmissionsDialog({
                     type="number"
                     min={0}
                     max={100}
-                    placeholder="Ball (0-100)"
+                    placeholder={t("pages.homework.scorePlaceholder")}
                     value={score}
                     onChange={(e) => setScore(e.target.value)}
                   />
                   <Textarea
-                    placeholder="Izoh (ixtiyoriy)"
+                    placeholder={t("pages.homework.feedbackPlaceholder")}
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     rows={2}
                   />
                   <div className="flex justify-end gap-2">
                     <Button type="button" size="sm" variant="ghost" onClick={() => setGradingId(null)}>
-                      Bekor qilish
+                      {t("common.cancel")}
                     </Button>
                     <Button
                       type="button"
@@ -250,7 +310,7 @@ function SubmissionsDialog({
                         )
                       }
                     >
-                      Saqlash
+                      {t("common.save")}
                     </Button>
                   </div>
                 </div>
@@ -266,7 +326,7 @@ function SubmissionsDialog({
                     setFeedback(s.feedback ?? "");
                   }}
                 >
-                  {s.status === "GRADED" ? "Qayta baholash" : "Baholash"}
+                  {s.status === "GRADED" ? t("pages.homework.regrade") : t("pages.homework.grade")}
                 </Button>
               )}
             </div>
@@ -274,7 +334,7 @@ function SubmissionsDialog({
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Yopish
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -336,9 +396,9 @@ function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment 
             <p className="mt-1 text-sm text-muted-foreground">{assignment.description}</p>
           ) : null}
           {assignment.deadline ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("pages.homework.deadline")}: {formatDeadline(assignment.deadline)}
-            </p>
+            <div className="mt-1">
+              <DeadlineBadge deadline={assignment.deadline} t={t} />
+            </div>
           ) : null}
         </div>
         {current ? (
@@ -382,8 +442,13 @@ function StudentAssignmentCard({ assignment }: { assignment: HomeworkAssignment 
               </div>
               <div className="grid gap-1.5">
                 <Label>{t("pages.homework.fileOptional")}</Label>
-                <Input type="file" onChange={handleFile} />
-                {file ? <p className="text-xs text-muted-foreground">{file.name}</p> : null}
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed p-4 text-center transition-colors hover:bg-surface">
+                  <Paperclip className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {file ? file.name : t("pages.homework.chooseFile")}
+                  </span>
+                  <input type="file" className="hidden" onChange={handleFile} />
+                </label>
               </div>
             </div>
             <DialogFooter>

@@ -657,6 +657,22 @@ export function useMyPoints() {
   });
 }
 
+export interface StreaksResponse {
+  attendanceStreak: number;
+  homeworkStreak: number;
+}
+
+/** GET /gamification/my-streaks -- STUDENT o'zining davomat va uyga vazifa ketma-ket
+ * kunlari (streak) sonini ko'radi. */
+export function useMyStreaks() {
+  return useQuery({
+    queryKey: ["gamification", "my-streaks"],
+    queryFn: () =>
+      apiRequest<StreaksResponse>({ url: "/gamification/my-streaks", method: "GET" }),
+    retry: 1,
+  });
+}
+
 /** GET /gamification/leaderboard — top students by points, optionally scoped to one group. */
 export function useLeaderboard(groupId?: number, limit = 10) {
   return useQuery({
@@ -1624,5 +1640,119 @@ export function useResetHomeworkSubmission() {
       toast.success("Qayta topshirishga ruxsat berildi");
     },
     onError: (error: unknown) => toast.error(errorMessage(error, "Failed")),
+  });
+}
+
+// ==================== SUPPORT BO'SH VAQT / BANDLIK ====================
+
+/** GET /support-availability/my -- SUPPORT o'zining ochgan vaqt oynalari. */
+export function useSupportAvailability() {
+  return useQuery({
+    queryKey: ["support-availability", "my"],
+    queryFn: () =>
+      apiRequest<import("./types").SupportAvailability[]>({
+        url: "/support-availability/my",
+        method: "GET",
+      }),
+  });
+}
+
+/** POST /support-availability -- SUPPORT yangi bo'sh vaqt oynasi qo'shadi. */
+export function useCreateAvailability() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { date: string; startTime: string; endTime: string }) =>
+      apiRequest({ url: "/support-availability", method: "POST", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["support-availability"] });
+      toast.success("Bo'sh vaqt qo'shildi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Qo'shib bo'lmadi")),
+  });
+}
+
+/** DELETE /support-availability/:id */
+export function useRemoveAvailability() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiRequest({ url: `/support-availability/${id}`, method: "DELETE" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["support-availability"] });
+      toast.success("O'chirildi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "O'chirib bo'lmadi")),
+  });
+}
+
+/** GET /support-availability/by-date?date=YYYY-MM-DD -- shu kunda bo'sh supportlar. */
+export function useAvailableSupports(date?: string) {
+  return useQuery({
+    queryKey: ["support-availability", "by-date", date],
+    queryFn: () =>
+      apiRequest<import("./types").AvailableSupport[]>({
+        url: "/support-availability/by-date",
+        method: "GET",
+        params: { date },
+      }),
+    enabled: !!date,
+  });
+}
+
+/** GET /support-availability/:supportId/slots?date= -- bo'sh 30-daqiqalik slotlar. */
+export function useFreeSlots(supportId?: number, date?: string) {
+  return useQuery({
+    queryKey: ["support-availability", "slots", supportId, date],
+    queryFn: () =>
+      apiRequest<import("./types").FreeSlot[]>({
+        url: `/support-availability/${supportId}/slots`,
+        method: "GET",
+        params: { date },
+      }),
+    enabled: !!supportId && !!date,
+  });
+}
+
+/** POST /support-availability/bookings -- o'quvchi vaqtni band qiladi. */
+export function useCreateBooking(onDone?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      supportId: number;
+      date: string;
+      startTime: string;
+      durationMinutes: number;
+    }) => apiRequest({ url: "/support-availability/bookings", method: "POST", data: payload }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["support-availability"] });
+      toast.success("Vaqt band qilindi");
+      onDone?.();
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Band qilib bo'lmadi")),
+  });
+}
+
+/** GET /support-availability/bookings/my */
+export function useMyBookings() {
+  return useQuery({
+    queryKey: ["support-availability", "bookings", "my"],
+    queryFn: () =>
+      apiRequest<import("./types").SupportBooking[]>({
+        url: "/support-availability/bookings/my",
+        method: "GET",
+      }),
+  });
+}
+
+/** DELETE /support-availability/bookings/:id */
+export function useCancelBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiRequest({ url: `/support-availability/bookings/${id}`, method: "DELETE" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["support-availability"] });
+      toast.success("Bandlik bekor qilindi");
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error, "Bekor qilib bo'lmadi")),
   });
 }

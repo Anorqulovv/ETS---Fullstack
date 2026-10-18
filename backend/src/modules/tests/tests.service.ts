@@ -93,17 +93,26 @@ export class TestsService implements OnModuleInit {
    */
   private computeTestDeadline(test: Test, startedAt: Date, isRetry: boolean): Date | null {
     const endsAt = this.parseDateTime(test.endsAt);
+    const durationDeadline = test.durationMinutes
+      ? new Date(startedAt.getTime() + test.durationMinutes * 60 * 1000)
+      : null;
+
+    // Ikkalasi ham berilgan bo'lsa -- qaysi biri TEZROQ kelsa, o'shani ishlatamiz. Masalan
+    // davomiylik 20 daqiqa, lekin testning umumiy oynasi (endsAt) 2027-yilgacha ochiq bo'lsa,
+    // o'quvchi baribir faqat 20 daqiqa ishlashi kerak -- aks holda unga soatlab/yillab vaqt
+    // qolgandek noto'g'ri ko'rsatiladi.
+    if (endsAt && durationDeadline) {
+      return endsAt < durationDeadline ? endsAt : durationDeadline;
+    }
+
     if (endsAt) {
       // Qayta ishlashga ruxsat berilgan urinishda, agar testning umumiy tugash vaqti
       // (endsAt) allaqachon o'tib ketgan bo'lsa -- bu odatiy holat, chunki o'quvchi birinchi
       // marta ishlab bo'lgach test oynasi yopilgan bo'ladi -- eski endsAt'ni ishlatish
       // o'quvchiga 0 soniya vaqt qoldiradi (darhol avtomatik topshirilib ketadi). Shu sabab
-      // bunday holatda durationMinutes (yoki bo'lmasa testning original oyna uzunligi)
-      // asosida, YANGI boshlangan vaqtdan boshlab deadline hisoblanadi.
+      // bunday holatda testning original oyna uzunligi asosida, YANGI boshlangan vaqtdan
+      // boshlab deadline hisoblanadi. (durationMinutes bo'lsa yuqorida allaqachon hal bo'ldi.)
       if (isRetry && endsAt <= startedAt) {
-        if (test.durationMinutes) {
-          return new Date(startedAt.getTime() + test.durationMinutes * 60 * 1000);
-        }
         const startsAt = this.parseDateTime(test.startsAt);
         if (startsAt) {
           const windowMs = endsAt.getTime() - startsAt.getTime();
@@ -113,9 +122,8 @@ export class TestsService implements OnModuleInit {
       }
       return endsAt;
     }
-    return test.durationMinutes
-      ? new Date(startedAt.getTime() + test.durationMinutes * 60 * 1000)
-      : null;
+
+    return durationDeadline;
   }
 
   private async autoExpireStaleTestResults() {
@@ -745,8 +753,8 @@ Talablar:
   async create(dto: CreateTestDto, currentUser?: any): Promise<ISucces> {
     this.validateTestTimeRange(dto.startsAt, dto.endsAt, dto.durationMinutes);
 
-    if (!dto.groupId && !dto.directionId) {
-      throw new BadRequestException("Umumiy test yaratib bo'lmaydi. Yo'nalish yoki guruh tanlang");
+    if (!dto.groupId) {
+      throw new BadRequestException("Guruh tanlanishi shart");
     }
 
     if (currentUser?.role === UserRole.TEACHER) {
@@ -904,15 +912,16 @@ Talablar:
 
       if (!student) return succesRes([]);
 
-      const conditions: any[] = [];
-      if (student.groupId) conditions.push({ groupId: student.groupId, status: TestStatus.ACTIVE, isDeleted: false });
-      if (student.group?.directionId) {
-        conditions.push({ directionId: student.group.directionId, groupId: null, status: TestStatus.ACTIVE, isDeleted: false });
-      }
-      // Umumiy testlar studentga ko'rsatilmaydi
+      // Endi har bir test har doim aniq bitta guruhga tegishli (groupId majburiy) --
+      // "umumiy yo'nalish testi" imkoniyati olib tashlandi, shuning uchun o'quvchi faqat
+      // o'z guruhiga tegishli testlarni ko'radi.
 
-      const activeTests = conditions.length
-        ? await this.testRepo.find({ where: conditions, order: { id: 'DESC' }, relations: ['direction', 'group'] })
+      const activeTests = student.groupId
+        ? await this.testRepo.find({
+            where: { groupId: student.groupId, status: TestStatus.ACTIVE, isDeleted: false },
+            order: { id: 'DESC' },
+            relations: ['direction', 'group'],
+          })
         : [];
 
       // Test vaqti (endsAt) tugagandan keyin ham 1 soat davomida ro'yxatda qoladi -- lekin
@@ -921,23 +930,10 @@ Talablar:
       // getMyTestReview'da ham xuddi shu vaqt oynasi tekshiriladi).
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const recentConditions: any[] = [];
-      if (student.groupId) {
-        recentConditions.push({ groupId: student.groupId, isDeleted: false, endsAt: Between(oneHourAgo, now) });
-      }
-      if (student.group?.directionId) {
-        recentConditions.push({
-          directionId: student.group.directionId,
-          groupId: null,
-          isDeleted: false,
-          endsAt: Between(oneHourAgo, now),
-        });
-      }
-
       let reviewableTests: any[] = [];
-      if (recentConditions.length) {
+      if (student.groupId) {
         const recentlyEnded = await this.testRepo.find({
-          where: recentConditions,
+          where: { groupId: student.groupId, isDeleted: false, endsAt: Between(oneHourAgo, now) },
           order: { id: 'DESC' },
           relations: ['direction', 'group'],
         });
@@ -976,30 +972,14 @@ Talablar:
         .map((g: any) => Number(g.directionId))
         .filter(Boolean);
 
-      const conditions: any[] = [];
-
-      if (groupIds.length) {
-        conditions.push({
-          groupId: In(groupIds),
-          isDeleted: false,
-        });
-      }
-
-      if (directionIds.length) {
-        conditions.push({
-          directionId: In(directionIds),
-          groupId: null,
-          isDeleted: false,
-        });
-      }
-
-      // Muhim: umumiy testlar support/teacher uchun ko'rsatilmaydi.
-      if (!conditions.length) {
+      // Endi har bir test har doim aniq bitta guruhga tegishli (groupId majburiy) --
+      // ustoz/support faqat o'z guruhlariga tegishli testlarni ko'radi.
+      if (!groupIds.length) {
         return succesRes([]);
       }
 
       const data = await this.testRepo.find({
-        where: conditions,
+        where: { groupId: In(groupIds), isDeleted: false },
         order: { id: 'DESC' },
         relations: ['direction', 'group'],
       });
@@ -1042,13 +1022,8 @@ Talablar:
       if (!student) throw new NotFoundException("O'quvchi topilmadi");
 
       const isOwnGroupTest = student.groupId != null && test.groupId === student.groupId;
-      const isDirectionTest =
-        test.directionId != null &&
-        test.groupId == null &&
-        student.group?.directionId === test.directionId;
-      const isGeneral = test.groupId == null && test.directionId == null;
 
-      if (!isOwnGroupTest && !isDirectionTest && !isGeneral) {
+      if (!isOwnGroupTest) {
         throw new ForbiddenException("Bu test sizning guruhingizga tegishli emas");
       }
 
@@ -1332,8 +1307,17 @@ Talablar:
 
     const endsAt = this.parseDateTime(test.endsAt);
     if (endsAt) {
+      const now = new Date();
+      // Testning umumiy vaqti hali tugamagan bo'lsa -- boshqa o'quvchilar hali ishlayotgan
+      // bo'lishi mumkin, shuning uchun bu o'quvchi ham o'z javoblarini/to'g'ri javoblarni hali
+      // ko'ra olmaydi (aks holda ularni sinfdoshlariga aytib yuborishi mumkin edi).
+      if (now < endsAt) {
+        throw new ForbiddenException(
+          "Natijalar testning umumiy vaqti tugagandan keyin ko'rinadi",
+        );
+      }
       const reviewDeadline = new Date(endsAt.getTime() + 60 * 60 * 1000);
-      if (new Date() > reviewDeadline) {
+      if (now > reviewDeadline) {
         throw new ForbiddenException(
           "Bu testning natijalarini ko'rish muddati tugagan (test tugaganidan 1 soat o'tgan)",
         );
@@ -1458,12 +1442,8 @@ Talablar:
     this.ensureTestCanBeSubmitted(test, { isRetry: previousAttemptsCount > 0 });
 
     const isOwnGroupTest = student.groupId != null && test.groupId === student.groupId;
-    const isDirectionTest =
-      test.directionId != null &&
-      test.groupId == null &&
-      student.group?.directionId === test.directionId;
 
-    if (!isOwnGroupTest && !isDirectionTest) {
+    if (!isOwnGroupTest) {
       throw new ForbiddenException("Bu test sizning guruhingizga tegishli emas");
     }
 
@@ -1634,13 +1614,8 @@ Talablar:
     }
 
     const isOwnGroupTest = student.groupId != null && test.groupId === student.groupId;
-    const isDirectionTest =
-      test.directionId != null &&
-      test.groupId == null &&
-      student.group?.directionId === test.directionId;
-    const isGeneral = test.groupId == null && test.directionId == null;
 
-    if (!isOwnGroupTest && !isDirectionTest && !isGeneral) {
+    if (!isOwnGroupTest) {
       throw new ForbiddenException("Bu test sizning guruhingizga tegishli emas");
     }
 

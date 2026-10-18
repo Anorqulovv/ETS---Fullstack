@@ -159,7 +159,7 @@ function TestsPage() {
     {
       key: "duration",
       header: "Davomiyligi",
-      cell: (r) => (r.durationMinutes ? `${r.durationMinutes} daq` : "—"),
+      cell: (r) => (r.durationMinutes ? `${r.durationMinutes} ${t("common.minutesShort")}` : "—"),
     },
     {
       key: "date",
@@ -1032,8 +1032,12 @@ function AiGenerateSection({
   );
 }
 
-function typeLabel(type: TestType) {
-  return type === "DAILY" ? "Kunlik" : type === "WEEKLY" ? "Haftalik" : "Oylik";
+function typeLabel(type: TestType, t: (key: string) => string) {
+  return type === "DAILY"
+    ? t("pages.tests.typeDaily")
+    : type === "WEEKLY"
+      ? t("pages.tests.typeWeekly")
+      : t("pages.tests.typeMonthly");
 }
 
 /**
@@ -1099,7 +1103,7 @@ function StudentTestCard({ test: listTest }: { test: Test }) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base leading-snug">{listTest.title}</CardTitle>
-          <Badge variant="secondary">{typeLabel(listTest.type)}</Badge>
+          <Badge variant="secondary">{typeLabel(listTest.type, t)}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -1107,10 +1111,12 @@ function StudentTestCard({ test: listTest }: { test: Test }) {
           {listTest.durationMinutes ? (
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
-              {listTest.durationMinutes} daq
+              {listTest.durationMinutes} {t("common.minutesShort")}
             </span>
           ) : null}
-          {listTest.minScore ? <span>O'tish balli: {listTest.minScore}</span> : null}
+          {listTest.minScore ? (
+            <span>{t("pages.tests.passingScore")}: {listTest.minScore}</span>
+          ) : null}
           {status === "in_progress" ? (
             <Badge className="bg-warning/15 text-warning-foreground">{t("pages.tests.inProgress")}</Badge>
           ) : status === "finished" ? (

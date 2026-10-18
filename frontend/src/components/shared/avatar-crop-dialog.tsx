@@ -12,7 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 
 const OUTPUT_SIZE = 320; // final avatar hajmi (px)
-const PREVIEW_SIZE = 280; // dialogdagi ko'rinadigan doira hajmi (px)
+const PREVIEW_SIZE = 280; // dialogdagi ko'rinadigan doira hajmi (px) -- HECH QACHON o'zgarmaydi
 
 interface AvatarCropDialogProps {
   imageSrc: string | null;
@@ -25,6 +25,10 @@ interface AvatarCropDialogProps {
  * Oddiy, kutubxonasiz canvas-asosidagi rasm kesish oynasi -- foydalanuvchi rasmni
  * surishi (drag) va kattalashtirishi (zoom slider) mumkin, natijada OUTPUT_SIZE x
  * OUTPUT_SIZE o'lchamdagi kvadrat JPEG data URL hosil bo'ladi.
+ *
+ * Doira konteyner (PREVIEW_SIZE) HECH QACHON o'zgarmaydi -- faqat ichidagi rasm
+ * CSS transform (scale + translate) orqali kattalashadi/siljiydi, bu esa
+ * width/height'ni qayta hisoblashdan ko'ra ancha silliq va sifatliroq ishlaydi.
  */
 export function AvatarCropDialog({ imageSrc, open, onOpenChange, onCropped }: AvatarCropDialogProps) {
   const [zoom, setZoom] = useState(1);
@@ -43,7 +47,8 @@ export function AvatarCropDialog({ imageSrc, open, onOpenChange, onCropped }: Av
     setOffset({ x: 0, y: 0 });
   }
 
-  // Rasm PREVIEW_SIZE doirani har doim to'liq qoplashi uchun boshlang'ich masshtab.
+  // Rasm PREVIEW_SIZE doirani har doim to'liq qoplashi uchun boshlang'ich masshtab
+  // (rasmning tabiiy o'lchamiga qarab hisoblanadi, doira o'lchamiga emas).
   function baseScale(): number {
     if (!naturalSize) return 1;
     return Math.max(PREVIEW_SIZE / naturalSize.w, PREVIEW_SIZE / naturalSize.h);
@@ -102,8 +107,6 @@ export function AvatarCropDialog({ imageSrc, open, onOpenChange, onCropped }: Av
     const displayedW = naturalSize.w * scale;
     const displayedH = naturalSize.h * scale;
 
-    // Preview doirasining markazi -- rasmning qaysi qismi ko'rinib turibdi, shuni
-    // asl piksel koordinatalariga o'tkazamiz.
     const cropCenterXOnDisplayed = displayedW / 2 - offset.x;
     const cropCenterYOnDisplayed = displayedH / 2 - offset.y;
     const cropSizeOnDisplayed = PREVIEW_SIZE;
@@ -118,8 +121,14 @@ export function AvatarCropDialog({ imageSrc, open, onOpenChange, onCropped }: Av
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Sifatni oshirish -- katta zoom qilinganda (kichik source hudud katta canvas'ga
+    // cho'zilganda) brauzerning standart smoothing sifati past bo'lishi mumkin, bu esa
+    // rasmni "g'ijim"/xira ko'rsatadi. Yuqori sifatli smoothing shuni oldini oladi.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
     ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     onCropped(dataUrl);
     onOpenChange(false);
   }, [naturalSize, zoom, offset, onCropped, onOpenChange]);
@@ -135,8 +144,17 @@ export function AvatarCropDialog({ imageSrc, open, onOpenChange, onCropped }: Av
 
         <div className="flex flex-col items-center gap-4">
           <div
-            className="relative overflow-hidden rounded-full border bg-muted"
-            style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE, touchAction: "none", cursor: "grab" }}
+            className="relative shrink-0 overflow-hidden rounded-full border bg-muted"
+            style={{
+              width: PREVIEW_SIZE,
+              height: PREVIEW_SIZE,
+              minWidth: PREVIEW_SIZE,
+              minHeight: PREVIEW_SIZE,
+              maxWidth: PREVIEW_SIZE,
+              maxHeight: PREVIEW_SIZE,
+              touchAction: "none",
+              cursor: "grab",
+            }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -150,16 +168,16 @@ export function AvatarCropDialog({ imageSrc, open, onOpenChange, onCropped }: Av
                 alt=""
                 onLoad={handleImageLoad}
                 draggable={false}
-                className="pointer-events-none absolute select-none"
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
                 style={
                   naturalSize
                     ? {
-                        width: naturalSize.w * scale,
-                        height: naturalSize.h * scale,
-                        left: PREVIEW_SIZE / 2 - (naturalSize.w * scale) / 2 + offset.x,
-                        top: PREVIEW_SIZE / 2 - (naturalSize.h * scale) / 2 + offset.y,
+                        width: naturalSize.w,
+                        height: naturalSize.h,
+                        transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                        transformOrigin: "center center",
                       }
-                    : undefined
+                    : { visibility: "hidden" }
                 }
               />
             ) : null}

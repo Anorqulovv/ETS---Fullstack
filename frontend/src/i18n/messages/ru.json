@@ -33,7 +33,8 @@
     "gamification": "Геймификация",
     "activity": "Последняя активность",
     "salary": "Зарплаты",
-    "hr": "HR"
+    "hr": "HR",
+    "booking": "Запись к саппорту"
   },
   "common": {
     "search": "Поиск",
@@ -113,7 +114,8 @@
     "view": "Открыть",
     "endsAt": "Время окончания",
     "title": "Название",
-    "viewProfile": "Просмотр профиля"
+    "viewProfile": "Просмотр профиля",
+    "minutesShort": "мин"
   },
   "toast": {
     "created": "Успешно создано",
@@ -266,7 +268,11 @@
       "noResultsYet": "Пока никто не проходил этот тест.",
       "viewAnswers": "Посмотреть ответы",
       "allowRetry": "Разрешить повторную попытку",
-      "violationDefaultShort": "нарушение правил"
+      "violationDefaultShort": "нарушение правил",
+      "typeDaily": "Ежедневный",
+      "typeWeekly": "Еженедельный",
+      "typeMonthly": "Ежемесячный",
+      "passingScore": "Проходной балл"
     },
     "payments": {
       "title": "Платежи",
@@ -379,7 +385,11 @@
       "pointsUnit": "баллов",
       "source": "Источник",
       "pointsAdded": "Баллы начислены",
-      "pointsDeducted": "Баллы списаны"
+      "pointsDeducted": "Баллы списаны",
+      "attendanceStreak": "Серия посещений",
+      "homeworkStreak": "Серия домашних заданий",
+      "streakDays": "дней",
+      "streakTimes": "раз"
     },
     "activity": {
       "title": "Последняя активность",
@@ -402,7 +412,12 @@
       "paymentStatus": "Статус оплаты",
       "opsSubtitle": "Операционные показатели",
       "debt": "Задолженность",
-      "assignedTests": "Назначенные вам тесты"
+      "assignedTests": "Назначенные вам тесты",
+      "leaderboardEmpty": "Рейтинг пока пуст.",
+      "attendanceStreak": "Серия посещений",
+      "homeworkStreak": "Серия домашних заданий",
+      "streakDays": "дней",
+      "streakTimes": "раз"
     },
     "takeTest": {
       "rulesTitle": "Внимание — правила теста:",

@@ -33,7 +33,8 @@
     "gamification": "Gamifikatsiya",
     "activity": "So'nggi faollik",
     "salary": "Oyliklar",
-    "hr": "HR"
+    "hr": "HR",
+    "booking": "Support band qilish"
   },
   "common": {
     "search": "Qidirish",
@@ -113,7 +114,8 @@
     "genderRequired": "Jinsini tanlash shart",
     "view": "Ko'rish",
     "endsAt": "Tugash vaqti",
-    "viewProfile": "Profilni ko'rish"
+    "viewProfile": "Profilni ko'rish",
+    "minutesShort": "daq"
   },
   "toast": {
     "created": "Muvaffaqiyatli yaratildi",
@@ -266,7 +268,11 @@
       "noResultsYet": "Hali hech kim bu testni ishlamagan.",
       "viewAnswers": "Javoblarni ko'rish",
       "allowRetry": "Qayta ishlashga ruxsat berish",
-      "violationDefaultShort": "qoida buzildi"
+      "violationDefaultShort": "qoida buzildi",
+      "typeDaily": "Kunlik",
+      "typeWeekly": "Haftalik",
+      "typeMonthly": "Oylik",
+      "passingScore": "O'tish balli"
     },
     "payments": {
       "title": "To'lovlar",
@@ -379,7 +385,11 @@
       "pointsUnit": "ball",
       "source": "Manba",
       "pointsAdded": "Ball qo'shildi",
-      "pointsDeducted": "Ball ayirildi"
+      "pointsDeducted": "Ball ayirildi",
+      "attendanceStreak": "Davomat streaki",
+      "homeworkStreak": "Uyga vazifa streaki",
+      "streakDays": "kun",
+      "streakTimes": "marta"
     },
     "activity": {
       "title": "So'nggi faollik",
@@ -402,7 +412,12 @@
       "paymentStatus": "To'lov holati",
       "opsSubtitle": "Operatsion ko'rsatkichlar",
       "debt": "Qarzdorlik",
-      "assignedTests": "Sizga tayinlangan testlar"
+      "assignedTests": "Sizga tayinlangan testlar",
+      "leaderboardEmpty": "Hozircha reyting bo'sh.",
+      "attendanceStreak": "Davomat streaki",
+      "homeworkStreak": "Uyga vazifa streaki",
+      "streakDays": "kun",
+      "streakTimes": "marta"
     },
     "takeTest": {
       "rulesTitle": "Diqqat — test qoidalari:",

@@ -29,7 +29,7 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
       className={
-        "group relative overflow-hidden rounded-xl border bg-card p-5 shadow-soft transition-all hover:shadow-elevated" +
+        "group relative flex h-full min-h-[118px] flex-col justify-between overflow-hidden rounded-xl border bg-card p-5 shadow-soft transition-all hover:shadow-elevated" +
         (to ? " cursor-pointer hover:border-primary/40" : "")
       }
     >
@@ -63,7 +63,7 @@ export function StatCard({
 
   if (to) {
     return (
-      <Link to={to} className="block">
+      <Link to={to} className="block h-full">
         {content}
       </Link>
     );

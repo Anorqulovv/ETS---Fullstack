@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Trophy, Medal, Gift, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { Trophy, Medal, Gift, Plus, Trash2, ShoppingBag, Flame, BookCheck } from "lucide-react";
 
 import { PageMotion } from "@/components/shared/page-motion";
 import { PageHeader } from "@/components/shared/page-header";
@@ -26,6 +26,7 @@ import {
   useDeleteShopItem,
   useLeaderboard,
   useMyPoints,
+  useMyStreaks,
   formatPointsLogNote,
   usePurchaseShopItem,
   useShopItems,
@@ -256,6 +257,7 @@ function GamificationPage() {
   const groups = groupsQ.useList({ limit: 200 }).data?.data ?? [];
 
   const { data: myPoints, isLoading: myPointsLoading } = useMyPoints();
+  const { data: streaks } = useMyStreaks();
   const { data: leaderboard, isLoading: leaderboardLoading } = useLeaderboard(
     groupId ? Number(groupId) : undefined,
     20,
@@ -268,6 +270,41 @@ function GamificationPage() {
           title={t("pages.gamification.title")}
           description={t("pages.gamification.subtitle")}
         />
+
+        {isStudent ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card className="shadow-soft">
+              <CardContent className="flex items-center gap-3 pt-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
+                  <Flame className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {t("pages.gamification.attendanceStreak")}
+                  </div>
+                  <div className="text-2xl font-semibold tracking-tight">
+                    {streaks?.attendanceStreak ?? 0} {t("pages.gamification.streakDays")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-soft">
+              <CardContent className="flex items-center gap-3 pt-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <BookCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {t("pages.gamification.homeworkStreak")}
+                  </div>
+                  <div className="text-2xl font-semibold tracking-tight">
+                    {streaks?.homeworkStreak ?? 0} {t("pages.gamification.streakTimes")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
         {isStudent ? (
           <Card className="shadow-soft">

@@ -8,11 +8,13 @@ import { Group } from 'src/databases/entities/group.entity';
 import { PaymentSettings } from 'src/databases/entities/payment-settings.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
     JwtModule.register({}),
     TypeOrmModule.forFeature([Payment, Student, Parent, Group, PaymentSettings]),
+    TelegramModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService],

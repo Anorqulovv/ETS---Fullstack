@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsEnum, IsNumber, IsOptional, IsArray, ValidateNested, IsBoolean, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TestType } from 'src/common/enums/test.enum';
@@ -82,10 +82,10 @@ export class CreateTestDto {
   @IsOptional()
   directionId?: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'Guruh ID (optional)' })
+  @ApiProperty({ example: 1, description: 'Guruh ID (majburiy)' })
   @IsNumber()
-  @IsOptional()
-  groupId?: number;
+  @IsNotEmpty()
+  groupId: number;
 
   @ApiPropertyOptional({ example: 1, description: 'Dars raqami 1-12' })
   @IsNumber()

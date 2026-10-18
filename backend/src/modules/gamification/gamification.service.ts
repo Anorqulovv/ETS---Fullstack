@@ -4,6 +4,9 @@ import { Repository } from 'typeorm';
 import { Student } from 'src/databases/entities/student.entity';
 import { PointsLog, PointsSource } from 'src/databases/entities/points-log.entity';
 import { ShopItem } from 'src/databases/entities/shop-item.entity';
+import { Attendance } from 'src/databases/entities/attendance.entity';
+import { HomeworkSubmission } from 'src/databases/entities/homework-submission.entity';
+import { HomeworkAssignment } from 'src/databases/entities/homework-assignment.entity';
 import { succesRes } from 'src/infrastructure/utils/succes-res';
 import { ISucces } from 'src/infrastructure/utils/succes-interface';
 
@@ -33,7 +36,107 @@ export class GamificationService {
     private readonly logRepo: Repository<PointsLog>,
     @InjectRepository(ShopItem)
     private readonly shopRepo: Repository<ShopItem>,
+    @InjectRepository(Attendance)
+    private readonly attendanceRepo: Repository<Attendance>,
+    @InjectRepository(HomeworkSubmission)
+    private readonly submissionRepo: Repository<HomeworkSubmission>,
+    @InjectRepository(HomeworkAssignment)
+    private readonly assignmentRepo: Repository<HomeworkAssignment>,
   ) {}
+
+  // ==================== STREAK (ketma-ket kunlar) ====================
+
+  /**
+   * Davomat streaki -- o'quvchining eng so'nggi dars kunidan boshlab, orqaga qarab
+   * ketma-ket (uzilishsiz) kelgan darslar sonini hisoblaydi. Faqat isPresent=true bo'lgan
+   * kunlar hisoblanadi -- birinchi kelmagan (yoki umuman yozuv bo'lmagan ketma-ketlikdagi)
+   * kun topilishi bilan sanash to'xtaydi.
+   *
+   * Eslatma: 'ketma-ket dars kuni' tushunchasi -- bu kalendar kunlari emas, balki
+   * o'quvchining ATTENDANCE yozuvlari kuni bo'yicha guruhlangan holda, xronologik
+   * tartibda ketma-ket keladigan 'kelgan' kunlar zanjiri.
+   */
+  private async computeAttendanceStreak(studentId: number): Promise<number> {
+    const records = await this.attendanceRepo.find({
+      where: { studentId },
+      order: { timestamp: 'DESC' },
+      take: 200,
+    });
+    if (!records.length) return 0;
+
+    // Bir kunda bir nechta yozuv bo'lishi mumkin (masalan TURNSTILE + MANUAL) --
+    // har bir kalendar kuni uchun 'shu kun kelganmi' degan bitta holatga siqamiz.
+    const byDay = new Map<string, boolean>();
+    for (const r of records) {
+      const dayKey = new Date(r.timestamp).toISOString().slice(0, 10);
+      const wasPresent = byDay.get(dayKey);
+      byDay.set(dayKey, wasPresent === undefined ? r.isPresent : wasPresent || r.isPresent);
+    }
+
+    const days = Array.from(byDay.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+
+    let streak = 0;
+    for (const [, isPresent] of days) {
+      if (!isPresent) break;
+      streak++;
+    }
+    return streak;
+  }
+
+  /**
+   * Uyga vazifa streaki -- o'quvchining guruhiga berilgan vazifalarni (eng so'nggisidan
+   * boshlab, muddati (deadline) o'tganlarini xronologik tartibda) ketma-ket, muddatida
+   * (kechikmasdan) topshirganlar sonini hisoblaydi. Birinchi topshirmagan yoki kechiktirib
+   * topshirgan vazifa topilishi bilan sanash to'xtaydi.
+   */
+  private async computeHomeworkStreak(studentId: number, groupId?: number | null): Promise<number> {
+    if (!groupId) return 0;
+
+    const assignments = await this.assignmentRepo.find({
+      where: { groupId },
+      order: { deadline: 'DESC', createdAt: 'DESC' },
+      take: 100,
+    });
+    // Faqat muddati allaqachon o'tgan (yoki muddat belgilanmagan -- baholab bo'lgan)
+    // vazifalar hisobga olinadi -- hali ochiq turgan vazifa streakni uzmasligi kerak.
+    const now = new Date();
+    const dueAssignments = assignments.filter((a) => !a.deadline || new Date(a.deadline) <= now);
+    if (!dueAssignments.length) return 0;
+
+    const assignmentIds = dueAssignments.map((a) => a.id);
+    const submissions = await this.submissionRepo.find({
+      where: assignmentIds.map((assignmentId) => ({ assignmentId, studentId, isCurrent: true })),
+    });
+    const submissionByAssignment = new Map(submissions.map((s) => [s.assignmentId, s]));
+
+    let streak = 0;
+    for (const assignment of dueAssignments) {
+      const submission = submissionByAssignment.get(assignment.id);
+      if (!submission) break;
+      // Vaqtida topshirilganmi -- muddat bo'lsa, o'sha vaqtdan kech topshirilmagan bo'lishi kerak.
+      if (assignment.deadline && new Date(submission.submittedAt) > new Date(assignment.deadline)) break;
+      streak++;
+    }
+    return streak;
+  }
+
+  async getStreaks(studentId: number): Promise<ISucces> {
+    const student = await this.studentRepo.findOne({ where: { id: studentId } });
+    if (!student) throw new NotFoundException(`O'quvchi ID ${studentId} topilmadi`);
+
+    const [attendanceStreak, homeworkStreak] = await Promise.all([
+      this.computeAttendanceStreak(studentId),
+      this.computeHomeworkStreak(studentId, student.groupId),
+    ]);
+
+    return succesRes({ attendanceStreak, homeworkStreak });
+  }
+
+  async getStreaksByUserId(userId: number): Promise<ISucces> {
+    const student = await this.studentRepo.findOne({ where: { userId } });
+    if (!student) return succesRes({ attendanceStreak: 0, homeworkStreak: 0 });
+    return this.getStreaks(student.id);
+  }
 
   /**
    * Called from AttendanceService right after an attendance row is created. Never throws —

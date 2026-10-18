@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, MoreThanOrEqual } from "typeorm";
 import { Attendance } from "src/databases/entities/attendance.entity";
 import { Student } from "src/databases/entities/student.entity";
 import { Group } from "src/databases/entities/group.entity";
@@ -13,6 +13,14 @@ import { UserRole } from "src/common/enums/role.enum";
 
 @Injectable()
 export class AttendanceService {
+  // Davomat ro'yxati standart holatda oxirgi 90 kunni ko'rsatadi -- butun tarixni har safar
+  // yuklash (relations bilan) yozuvlar ko'paygan sari sahifani sekinlashtirib borar edi.
+  private defaultWindowStart(): Date {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return d;
+  }
+
   constructor(
     @InjectRepository(Attendance) private readonly attRepo: Repository<Attendance>,
     @InjectRepository(Student) private readonly studentRepo: Repository<Student>,
@@ -175,8 +183,8 @@ export class AttendanceService {
     await this.attRepo.save(attendance);
     void this.gamificationService.awardForAttendance(dto.studentId, attendance.id, dto.isPresent ?? true);
 
-    // Ota-onaga TG xabar
-    await this._notifyParent(student, dto.isPresent ?? true);
+    // Ota-onaga TG xabar -- fon rejimida
+    void this._notifyParent(student, dto.isPresent ?? true);
 
     return succesRes({ message: 'Davomat saqlandi', attendance });
   }
@@ -215,8 +223,9 @@ export class AttendanceService {
       void this.gamificationService.awardForAttendance(item.studentId, att.id, item.isPresent);
       results.push(att);
 
-      // Ota-onaga xabar
-      await this._notifyParent(student, item.isPresent);
+      // Ota-onaga xabar -- Telegram javobini kutmaymiz (bir necha soniyaga cho'zilishi
+      // mumkin edi, ayniqsa katta guruhlarda), fon rejimida yuboriladi.
+      void this._notifyParent(student, item.isPresent);
     }
 
     return succesRes({
@@ -280,9 +289,10 @@ export class AttendanceService {
       if (!studentIds.length) return succesRes([]);
 
       const data = await this.attRepo.find({
-        where: studentIds.map((studentId) => ({ studentId })),
+        where: studentIds.map((studentId) => ({ studentId, timestamp: MoreThanOrEqual(this.defaultWindowStart()) })),
         relations: ['student', 'student.user', 'student.group'],
         order: { timestamp: 'DESC' },
+        take: 2000,
       });
 
       return succesRes(data);
@@ -308,17 +318,22 @@ export class AttendanceService {
       if (!studentIds.length) return succesRes([]);
 
       const data = await this.attRepo.find({
-        where: studentIds.map((studentId) => ({ studentId })),
+        where: studentIds.map((studentId) => ({ studentId, timestamp: MoreThanOrEqual(this.defaultWindowStart()) })),
         relations: ['student', 'student.user', 'student.group'],
         order: { timestamp: 'DESC' },
+        take: 2000,
       });
 
       return succesRes(data);
     }
 
+    // Admin/superadmin: eng oxirgi 2000 ta yozuv (90 kun ichida) -- butun tarix emas.
+    // Sahifa vaqt o'tgan sari sekinlashib borishining oldini oladi.
     const data = await this.attRepo.find({
+      where: { timestamp: MoreThanOrEqual(this.defaultWindowStart()) },
       relations: ['student', 'student.user', 'student.group'],
       order: { timestamp: 'DESC' },
+      take: 2000,
     });
 
     return succesRes(data);

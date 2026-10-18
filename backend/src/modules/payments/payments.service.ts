@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, IsNull, Repository } from 'typeorm';
@@ -22,6 +23,7 @@ import { PayMonthlyDto } from './dto/pay-monthly.dto';
 import { PayRemainderDto } from './dto/pay-remainder.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { SetStudentDiscountDto } from './dto/set-student-discount.dto';
+import { TelegramService } from '../telegram/telegram.service';
 import { succesRes } from 'src/infrastructure/utils/succes-res';
 import {
   ISucces,
@@ -50,7 +52,13 @@ function dueMonthsSoFar(startDate: string, durationMonths: number): string[] {
 }
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
+  // Bugun avtomatik to'lov eslatmasi allaqachon yuborilgan o'quvchi ID'lari -- xotirada
+  // saqlanadi, xizmat qayta ishga tushganda (deploy/restart) tozalanadi, bu esa server
+  // kuniga bir necha marta qayta ishga tushmasa yetarli (odatiy holat uchun mos).
+  private remindedToday = new Set<number>();
+  private remindedDateKey = '';
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
@@ -60,7 +68,78 @@ export class PaymentsService {
     @InjectRepository(Group) private readonly groupRepo: Repository<Group>,
     @InjectRepository(PaymentSettings)
     private readonly settingsRepo: Repository<PaymentSettings>,
+    private readonly telegramService: TelegramService,
   ) {}
+
+  onModuleInit() {
+    // Har 30 daqiqada tekshiradi, lekin faqat mahalliy (server) vaqti soat 09:00-09:29
+    // oralig'ida bo'lganda haqiqiy ishni bajaradi -- shunday qilib kuniga bir marta,
+    // ertalab yuboriladi (aniq cron kutubxonasisiz, oddiy interval orqali).
+    setInterval(() => {
+      this.maybeSendDailyPaymentReminders().catch((err) =>
+        console.error('maybeSendDailyPaymentReminders error:', err?.message ?? err),
+      );
+    }, 30 * 60 * 1000);
+  }
+
+  private todayKey(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  }
+
+  private async maybeSendDailyPaymentReminders() {
+    const now = new Date();
+    if (now.getHours() !== 9) return; // faqat soat 09:00-09:59 oralig'ida
+
+    const key = this.todayKey();
+    if (this.remindedDateKey !== key) {
+      this.remindedDateKey = key;
+      this.remindedToday.clear();
+    }
+
+    const students = await this.studentRepo.find({
+      where: { groupId: Not(IsNull()) } as any,
+      relations: ['user', 'parent', 'parent.user'],
+    });
+
+    for (const student of students) {
+      if (this.remindedToday.has(student.id)) continue;
+
+      let balance: any;
+      try {
+        balance = (await this.getBalance(student.id) as any).data;
+      } catch {
+        continue;
+      }
+      if (!balance?.hasDebt || !(balance.debtAmount > 0)) continue;
+
+      this.remindedToday.add(student.id);
+
+      const amountText = new Intl.NumberFormat('uz-UZ').format(balance.debtAmount);
+      const monthsText = (balance.unpaidDueMonths ?? []).join(', ');
+
+      const studentMsg =
+        `\u{1F4B0} <b>To'lov eslatmasi</b>\n\n` +
+        `Sizda qarzdorlik mavjud: <b>${amountText} so'm</b>\n` +
+        `To'lanmagan oylar: <b>${monthsText}</b>\n\n` +
+        `Iltimos, imkon qadar tezroq to'lovni amalga oshiring.`;
+
+      if (student.user?.telegramId) {
+        await this.telegramService.sendNotification(student.user.telegramId, studentMsg);
+      }
+
+      const parentTelegramId = student.parent?.user?.telegramId;
+      if (parentTelegramId) {
+        const parentMsg =
+          `\u{1F4B0} <b>To'lov eslatmasi</b>\n\n` +
+          `\u{1F464} O'quvchi: <b>${student.user?.fullName ?? '\u2014'}</b>\n` +
+          `Qarzdorlik: <b>${amountText} so'm</b>\n` +
+          `To'lanmagan oylar: <b>${monthsText}</b>\n\n` +
+          `Iltimos, imkon qadar tezroq to'lovni amalga oshiring.`;
+        await this.telegramService.sendNotification(parentTelegramId, parentMsg);
+      }
+    }
+  }
 
   async create(dto: CreatePaymentDto, reqUser: any): Promise<ISucces> {
     const student = await this.studentRepo.findOne({

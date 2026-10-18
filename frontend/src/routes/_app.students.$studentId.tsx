@@ -1,15 +1,46 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, GraduationCap, Wallet, CalendarCheck, Trophy, CheckCircle2, XCircle, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  GraduationCap,
+  Wallet,
+  CalendarCheck,
+  Trophy,
+  CheckCircle2,
+  XCircle,
+  Pencil,
+  type LucideIcon,
+} from "lucide-react";
 
 import { PageMotion } from "@/components/shared/page-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useStudentDetail, useStudentBalance } from "@/lib/api/hooks";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FormDialog } from "@/components/shared/form-dialog";
+import { GenderSelect } from "@/components/shared/gender-select";
+import {
+  groupsQ,
+  parentsQ,
+  studentsQ,
+  useStudentDetail,
+  useStudentBalance,
+} from "@/lib/api/hooks";
+import type { Student } from "@/lib/api/types";
 import { getAvatarUrl } from "@/lib/avatar";
 import { useCurrency } from "@/lib/currency";
+import { useAuth, useCurrentRole } from "@/lib/auth-context";
+import { effectiveCanMutate } from "@/lib/roles";
 
 export const Route = createFileRoute("/_app/students/$studentId")({
   head: () => ({ meta: [{ title: "Student — Edu CRM" }] }),
@@ -23,6 +54,40 @@ function StudentDetailPage() {
   const id = Number(studentId);
   const { data: student, isLoading } = useStudentDetail(id);
   const { data: balance } = useStudentBalance(id);
+
+  // Faqat ADMIN/SUPERADMIN (yoki shu rolga ega grantedRoles) tahrirlay oladi — backend
+  // StudentsController.update ham xuddi shunday (@AccessRoles(SUPERADMIN, ADMIN)), bu yerda
+  // faqat tugmani ko'rsatish/yashirishni boshqaradi, yakuniy himoya baribir backendda.
+  const role = useCurrentRole();
+  const { user } = useAuth();
+  const canEdit = effectiveCanMutate(role, "students", user?.grantedRoles ?? []);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formState, setFormState] = useState<Partial<Student>>({});
+
+  const groups = groupsQ.useList({ limit: 200 }).data?.data ?? [];
+  const parentsList = parentsQ.useList({ limit: 200 }).data?.data ?? [];
+  const update = studentsQ.useUpdate(() => setDialogOpen(false));
+
+  const openEdit = () => {
+    if (!student) return;
+    setFormState({
+      id: student.id,
+      fullName: student.user?.fullName,
+      username: student.user?.username,
+      phone: student.user?.phone,
+      gender: student.user?.gender,
+      cardId: student.cardId,
+      groupId: student.group?.id,
+      parentId: student.parent?.id,
+    });
+    setDialogOpen(true);
+  };
+
+  const submitEdit = () => {
+    if (formState.id == null) return;
+    update.mutate({ id: formState.id, payload: formState });
+  };
 
   const initials =
     student?.user?.fullName
@@ -39,12 +104,20 @@ function StudentDetailPage() {
   return (
     <PageMotion>
       <div className="space-y-5">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link to="/students">
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            {t("pages.students.title")}
-          </Link>
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button asChild variant="ghost" size="sm" className="-ml-2">
+            <Link to="/students">
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              {t("pages.students.title")}
+            </Link>
+          </Button>
+          {canEdit && student ? (
+            <Button size="sm" onClick={openEdit}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              {t("common.edit")}
+            </Button>
+          ) : null}
+        </div>
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
@@ -178,6 +251,103 @@ function StudentDetailPage() {
             </Card>
           </>
         )}
+
+        {canEdit ? (
+          <FormDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            title={t("common.edit")}
+            loading={update.isPending}
+            onSubmit={submitEdit}
+          >
+            <div className="grid gap-4">
+              <div className="grid gap-1.5">
+                <Label>{t("common.name")}</Label>
+                <Input
+                  value={formState.fullName ?? ""}
+                  onChange={(e) => setFormState((p) => ({ ...p, fullName: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label>{t("common.cardId")}</Label>
+                  <Input
+                    value={formState.cardId ?? ""}
+                    onChange={(e) => setFormState((p) => ({ ...p, cardId: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>{t("common.phone")}</Label>
+                  <Input
+                    value={formState.phone ?? ""}
+                    onChange={(e) => setFormState((p) => ({ ...p, phone: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label>{t("common.username")}</Label>
+                  <Input
+                    value={formState.username ?? ""}
+                    onChange={(e) => setFormState((p) => ({ ...p, username: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>{t("nav.groups")}</Label>
+                  <Select
+                    value={formState.groupId ? String(formState.groupId) : undefined}
+                    onValueChange={(v) => setFormState((p) => ({ ...p, groupId: Number(v) }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("common.selectPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={String(g.id)}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <GenderSelect
+                value={formState.gender}
+                onChange={(gender) => setFormState((p) => ({ ...p, gender }))}
+              />
+
+              <div className="grid gap-1.5">
+                <Label>{t("nav.parents")}</Label>
+                <Select
+                  value={formState.parentId ? String(formState.parentId) : undefined}
+                  onValueChange={(v) => setFormState((p) => ({ ...p, parentId: Number(v) }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("common.selectPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {parentsList.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>{t("common.password")}</Label>
+                <Input
+                  type="password"
+                  placeholder={t("common.passwordUnchangedHint")}
+                  value={formState.password ?? ""}
+                  onChange={(e) => setFormState((p) => ({ ...p, password: e.target.value }))}
+                />
+              </div>
+            </div>
+          </FormDialog>
+        ) : null}
       </div>
     </PageMotion>
   );
